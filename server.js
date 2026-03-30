@@ -8,7 +8,12 @@ import { fileURLToPath } from "url";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type"]
+}));
+
 app.use(express.json());
 
 // ⚙️ esto es para poder usar __dirname en ES modules
@@ -21,6 +26,8 @@ app.use(express.static(__dirname)); // sirve lo que haya en la carpeta actual
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+app.options("*", cors()); // 👈 esto arregla preflight (MUY IMPORTANTE)
 
 app.post("/chat", async (req, res) => {
   const { messages } = req.body;
@@ -67,6 +74,8 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
-  console.log(`✅ Servidor escuchando en http://localhost:${PORT}`);
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });
+
