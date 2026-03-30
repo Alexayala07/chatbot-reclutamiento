@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat de ayuda</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      --color-primario: #f43f5e;
+      --bg: #0f172a;
+      --panel: #1f2937;
+      --texto: #e2e8f0;
+    }
+    body {
+      margin: 0;
+      background: #0f172a;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: white;
+      min-height: 100vh;
+    }
+    #chatbot-toggle {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      width: 56px; height: 56px;
+      border-radius: 9999px;
+      background: var(--color-primario);
+      display: grid; place-items: center;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      font-size: 26px;
+    }
+    #chatbot-box {
+      position: fixed;
+      bottom: 90px; right: 20px;
+      width: 320px; height: 420px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(248, 250, 252, 0.1);
+      border-radius: 18px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(10px);
+    }
+    #chatbot-box.hidden { display: none; }
+    #chatbot-header {
+      padding: 10px 14px;
+      background: rgba(15,23,42,.3);
+      font-weight: 600;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(248,250,252,0.05);
+    }
+    #chatbot-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .msg {
+      max-width: 90%;
+      padding: 6px 10px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.3;
+      white-space: pre-wrap;
+    }
+    .user { background: #22d3ee; color: #0f172a; align-self: flex-end; }
+    .assistant { background: rgba(15,23,42,.3); border: 1px solid rgba(148,163,184,.2); }
+    #chatbot-form {
+      border-top: 1px solid rgba(248,250,252,0.05);
+      display: flex;
+    }
+    #chatbot-input {
+      flex: 1;
+      background: transparent;
+      border: 0;
+      color: white;
+      padding: 8px 10px;
+      outline: none;
+      font-size: 13px;
+    }
+    #chatbot-send {
+      background: transparent;
+      border: 0;
+      color: white;
+      padding: 0 10px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="chatbot-toggle">💬</div>
+
+  <div id="chatbot-box" class="hidden">
+    <div id="chatbot-header">Asistente Virtual </div>
+    <div id="chatbot-messages"></div>
+    <form id="chatbot-form">
+      <input id="chatbot-input" placeholder="Escribe tu duda..." autocomplete="off" />
+      <button id="chatbot-send">➤</button>
+    </form>
+  </div>
+
+  <script>
+    const API_URL = "https://bot-soporte-alejandro.onrender.com/chat";
+
+
+    const toggle = document.getElementById("chatbot-toggle");
+    const box = document.getElementById("chatbot-box");
+    const messagesDiv = document.getElementById("chatbot-messages");
+    const form = document.getElementById("chatbot-form");
+    const input = document.getElementById("chatbot-input");
+
+    const chatHistory = [
+      { role: "assistant", content: "Hola 👋 soy tu bot de ayuda. Pregúntame sobre: escaneo, tickets, portal WiFi o cámaras." }
+    ];
+    render();
+
+    toggle.onclick = () => {
+      box.classList.toggle("hidden");
+      if (!box.classList.contains("hidden")) {
+        input.focus();
+      }
+    };
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      chatHistory.push({ role: "user", content: text });
+      render();
+      input.value = "";
+      input.focus();
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: chatHistory }),
+        });
+        const data = await res.json();
+        if (data.reply) {
+          chatHistory.push(data.reply);
+          render();
+        } else {
+          chatHistory.push({ role: "assistant", content: "No pude responder 😢" });
+          render();
+        }
+      } catch (err) {
+        chatHistory.push({ role: "assistant", content: "Error de conexión con el servidor." });
+        render();
+      }
+    });
+
+    function render() {
+      messagesDiv.innerHTML = "";
+      chatHistory.forEach((m) => {
+        const el = document.createElement("div");
+        el.className = "msg " + m.role;
+        el.textContent = m.content;
+        messagesDiv.appendChild(el);
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+  </script>
+</body>
+</html>
