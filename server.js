@@ -16,9 +16,12 @@ app.use((req, res, next) => {
 });
 
 // 🔥 PREFLIGHT
-app.options("*", (req, res) => {
+app.options("/", (req, res) => {
   res.sendStatus(200);
 });
+
+
+
 
 app.use(express.json());
 
