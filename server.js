@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import OpenAI from "openai";
 import dotenv from "dotenv";
 import path from "path";
@@ -8,8 +7,7 @@ import { fileURLToPath } from "url";
 dotenv.config();
 
 const app = express();
-
-// 🔥 CORS MANUAL (SOLUCIÓN DEFINITIVA)
+// 🔥 CORS PRIMERO DE TODO
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -17,7 +15,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🔥 MANEJO DE PREFLIGHT (OPTIONS)
+// 🔥 PREFLIGHT
 app.options("*", (req, res) => {
   res.sendStatus(200);
 });
