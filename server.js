@@ -8,11 +8,19 @@ import { fileURLToPath } from "url";
 dotenv.config();
 
 const app = express();
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type"]
-}));
+
+// 🔥 CORS MANUAL (SOLUCIÓN DEFINITIVA)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  next();
+});
+
+// 🔥 MANEJO DE PREFLIGHT (OPTIONS)
+app.options("*", (req, res) => {
+  res.sendStatus(200);
+});
 
 app.use(express.json());
 
@@ -27,7 +35,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-app.options("*", cors()); // 👈 esto arregla preflight (MUY IMPORTANTE)
 
 app.post("/chat", async (req, res) => {
   const { messages } = req.body;
@@ -35,30 +42,29 @@ app.post("/chat", async (req, res) => {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
-          Eres un asistente virtual del departamento de reclutamiento.
+  model: "gpt-5-mini",
+  messages: [
+    {
+      role: "system",
+      content: `
+      Eres un asistente virtual del departamento de reclutamiento.
 
-          Ayudas a candidatos con:
-          - requisitos para contratación
-          - documentos necesarios (INE, CURP, comprobante de domicilio)
-          - dudas sobre entrevistas
-          - proceso de ingreso
-          - uso de la app para escanear documentos
+      Ayudas a candidatos con:
+      - requisitos para contratación
+      - documentos necesarios (INE, CURP, comprobante de domicilio)
+      - proceso de ingreso
+      - dudas sobre entrevistas
 
-          Responde de forma clara, profesional y breve.
+      Responde claro, profesional y breve.
 
-          Si te preguntan algo fuera de reclutamiento, responde:
-          "Solo puedo ayudarte con temas de reclutamiento y documentación."
-          `,
+      Si preguntan algo fuera de reclutamiento, responde:
+      "Solo puedo ayudarte con temas de reclutamiento."
+      `,
+    },
+    ...lastMessages,
+  ],
+});
 
-        },
-        ...messages,
-      ],
-    });
 
     res.json({ reply: completion.choices[0].message });
   } catch (err) {
