@@ -20,9 +20,6 @@ app.options("/", (req, res) => {
   res.sendStatus(200);
 });
 
-
-
-
 app.use(express.json());
 
 // ⚙️ esto es para poder usar __dirname en ES modules
@@ -35,7 +32,6 @@ app.use(express.static(__dirname)); // sirve lo que haya en la carpeta actual
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
 
 app.post("/chat", async (req, res) => {
   const { messages } = req.body;
