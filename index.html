@@ -2,169 +2,171 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Chat de ayuda</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reclutamiento Inteligente</title>
+
+  <!-- SEO básico -->
+  <meta name="description" content="Plataforma de reclutamiento inteligente para vacantes en restaurantes. Encuentra empleo fácilmente." />
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Scroll suave -->
   <style>
-    :root {
-      --color-primario: #f43f5e;
-      --bg: #0f172a;
-      --panel: #1f2937;
-      --texto: #e2e8f0;
-    }
-    body {
-      margin: 0;
-      background: #0f172a;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: white;
-      min-height: 100vh;
-    }
-    #chatbot-toggle {
-      position: fixed;
-      bottom: 20px; right: 20px;
-      width: 56px; height: 56px;
-      border-radius: 9999px;
-      background: var(--color-primario);
-      display: grid; place-items: center;
-      cursor: pointer;
-      box-shadow: 0 10px 30px rgba(0,0,0,.35);
-      font-size: 26px;
-    }
-    #chatbot-box {
-      position: fixed;
-      bottom: 90px; right: 20px;
-      width: 320px; height: 420px;
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid rgba(248, 250, 252, 0.1);
-      border-radius: 18px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      backdrop-filter: blur(10px);
-    }
-    #chatbot-box.hidden { display: none; }
-    #chatbot-header {
-      padding: 10px 14px;
-      background: rgba(15,23,42,.3);
-      font-weight: 600;
-      font-size: 14px;
-      border-bottom: 1px solid rgba(248,250,252,0.05);
-    }
-    #chatbot-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .msg {
-      max-width: 90%;
-      padding: 6px 10px;
-      border-radius: 12px;
-      font-size: 13px;
-      line-height: 1.3;
-      white-space: pre-wrap;
-    }
-    .user { background: #22d3ee; color: #0f172a; align-self: flex-end; }
-    .assistant { background: rgba(15,23,42,.3); border: 1px solid rgba(148,163,184,.2); }
-    #chatbot-form {
-      border-top: 1px solid rgba(248,250,252,0.05);
-      display: flex;
-    }
-    #chatbot-input {
-      flex: 1;
-      background: transparent;
-      border: 0;
-      color: white;
-      padding: 8px 10px;
-      outline: none;
-      font-size: 13px;
-    }
-    #chatbot-send {
-      background: transparent;
-      border: 0;
-      color: white;
-      padding: 0 10px;
-      cursor: pointer;
-      font-size: 16px;
+    html {
+      scroll-behavior: smooth;
     }
   </style>
 </head>
+
 <body>
-
-  <div id="chatbot-toggle">💬</div>
-
-  <div id="chatbot-box" class="hidden">
-    <div id="chatbot-header">Asistente Virtual </div>
-    <div id="chatbot-messages"></div>
-    <form id="chatbot-form">
-      <input id="chatbot-input" placeholder="Escribe tu duda..." autocomplete="off" />
-      <button id="chatbot-send">➤</button>
-    </form>
+  
+  <!-- 🔹 TOP BAR -->
+<header class="topbar">
+  <div class="topbar__left">
+    <img 
+      src="/img/gaho.png" 
+      alt="GA Hospitality" 
+      class="corporativo-logo"
+    />
+    <div>
+      <h2>GA Hospitality</h2>
+      <p>Plataforma de reclutamiento inteligente</p>
+    </div>
   </div>
+</header>
+  <!-- 🔹 HERO -->
+  <header class="hero">
+    <div class="hero__content">
+      <span class="badge">IA para Reclutamiento</span>
 
-  <script>
-    const API_URL = "https://chatbot-reclutamiento-cl32.onrender.com/chat";
+      <h1>Encuentra tu próxima oportunidad</h1>
 
+      <p>
+        Selecciona la franquicia de tu interés, explora vacantes y recibe orientación personalizada.
+      </p>
 
-    const toggle = document.getElementById("chatbot-toggle");
-    const box = document.getElementById("chatbot-box");
-    const messagesDiv = document.getElementById("chatbot-messages");
-    const form = document.getElementById("chatbot-form");
-    const input = document.getElementById("chatbot-input");
+      <div class="hero__actions">
+        <a href="#franquicias" class="btn btn--primary">Ver franquicias</a>
+        <a href="#registro" class="btn btn--ghost">Completar perfil</a>
+      </div>
+    </div>
+  </header>
 
-    const chatHistory = [
-  { role: "assistant", content: "Hola 👋 soy el asistente de reclutamiento. Puedo ayudarte con requisitos, documentos y proceso de contratación." }
-];
+  <!-- 🔹 CONTENIDO -->
+  <main class="container">
 
-    render();
+    <!-- 🔹 FORMULARIO -->
+    <section id="registro" class="card">
+      <div class="section-head">
+        <h2>Perfil inicial del candidato</h2>
+        <p>Completa esta información para recibir sugerencias más precisas.</p>
+      </div>
 
-    toggle.onclick = () => {
-      box.classList.toggle("hidden");
-      if (!box.classList.contains("hidden")) {
-        input.focus();
-      }
-    };
+      <form id="candidate-form" class="form-grid">
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
-      chatHistory.push({ role: "user", content: text });
-      render();
-      input.value = "";
-      input.focus();
+        <div class="field">
+          <label for="nombre">Nombre completo</label>
+          <input id="nombre" type="text" placeholder="" />
+        </div>
 
-      try {
-        const res = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: chatHistory }),
-        });
-        const data = await res.json();
-        if (data.reply) {
-          chatHistory.push(data.reply);
-          render();
-        } else {
-          chatHistory.push({ role: "assistant", content: "No pude responder 😢" });
-          render();
-        }
-      } catch (err) {
-        chatHistory.push({ role: "assistant", content: "Error de conexión con el servidor." });
-        render();
-      }
-    });
+        <div class="field">
+          <label for="ciudad">Ciudad</label>
+          <input id="ciudad" type="text" placeholder="" />
+        </div>
 
-    function render() {
-      messagesDiv.innerHTML = "";
-      chatHistory.forEach((m) => {
-        const el = document.createElement("div");
-        el.className = "msg " + m.role;
-        el.textContent = m.content;
-        messagesDiv.appendChild(el);
-      });
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-  </script>
+        <div class="field">
+          <label for="puestoInteres">Puesto de interés</label>
+          <input id="puestoInteres" type="text" placeholder="" />
+        </div>
+
+        <div class="field">
+          <label for="escolaridad">Escolaridad</label>
+          <input id="escolaridad" type="text" placeholder="" />
+        </div>
+
+        <div class="field field--full">
+          <label for="experiencia">Experiencia laboral</label>
+          <textarea id="experiencia" rows="4" placeholder=""></textarea>
+        </div>
+
+        <div class="field field--full">
+          <label for="habilidades">Habilidades</label>
+          <textarea id="habilidades" rows="3" placeholder=""></textarea>
+        </div>
+
+        <div class="form-actions field--full">
+          <button type="submit" class="btn btn--primary">Guardar perfil</button>
+        </div>
+
+      </form>
+
+      <div id="profile-status" class="status hidden"></div>
+    </section>
+
+    <!-- 🔹 FRANQUICIAS -->
+    <section id="franquicias" class="card">
+      <div class="section-head">
+        <h2>Franquicias disponibles</h2>
+        <p>Selecciona la marca en la que deseas trabajar y revisa sus oportunidades.</p>
+      </div>
+
+      <div id="franquicias-list" class="franquicias-grid">
+        <!-- Se llena con JS -->
+      </div>
+    </section>
+
+    <!-- 🔹 VACANTES -->
+    <section id="ofertas" class="card">
+      <div class="section-head">
+        <h2>Ofertas laborales</h2>
+        <p id="ofertas-subtitulo">
+          Selecciona una franquicia para ver sus vacantes.
+        </p>
+      </div>
+
+      <div id="vacantes-list" class="vacantes-grid">
+        <!-- Se llena con JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 🔹 BOTÓN CHAT -->
+  <button id="chatbot-toggle" class="chatbot-toggle" aria-label="Abrir chat">
+    💬
+  </button>
+
+  <!-- 🔹 CHAT -->
+  <aside id="chatbot-box" class="chatbot-box hidden">
+
+    <div class="chatbot-header">
+      <div>
+        <strong>Asistente de Reclutamiento</strong>
+        <p>Vacantes, requisitos y orientación inicial</p>
+      </div>
+
+      <button id="chatbot-close" class="chatbot-close" aria-label="Cerrar chat">
+        ✕
+      </button>
+    </div>
+
+    <div id="chatbot-messages" class="chatbot-messages"></div>
+
+    <form id="chatbot-form" class="chatbot-form">
+      <input 
+        id="chatbot-input" 
+        type="text" 
+        placeholder="Escribe tu duda..." 
+        autocomplete="off"
+      />
+      <button id="chatbot-send" type="submit">Enviar</button>
+    </form>
+
+  </aside>
+
+  <!-- 🔹 JS -->
+  <script src="chatbot.js"></script>
+
 </body>
 </html>

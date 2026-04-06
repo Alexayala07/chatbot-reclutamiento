@@ -1,18 +1,16 @@
 {
-  "name": "chatgpt-bot",
+  "name": "chatbot-reclutamiento",
   "version": "1.0.0",
-  "description": "Chatbot personalizado de Alejandro con OpenAI",
-  "type": "module",
+  "description": "Plataforma base de reclutamiento con chatbot y vacantes",
   "main": "server.js",
+  "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
-  "author": "Alejandro Ayala",
-  "license": "MIT",
   "dependencies": {
-    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "openai": "^6.7.0"
+    "openai": "^6.1.0"
   }
 }
