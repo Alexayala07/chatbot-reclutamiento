@@ -1,4 +1,4 @@
-const API_URL = window.location.origin;
+const API_URL = "https://chatbot-reclutamiento-cl32.onrender.com";
 
 const postulacionesList = document.getElementById("postulacionesList");
 const dashboardStatus = document.getElementById("dashboardStatus");
@@ -133,7 +133,7 @@ function openModal(candidate) {
   modalFecha.textContent = formatFecha(candidate.fechaRegistro);
   modalExperiencia.textContent = candidate.experiencia || "No proporcionada";
   modalHabilidades.textContent = candidate.habilidades || "No proporcionadas";
-  modalCvLink.href = candidate.cvRuta || "#";
+  modalCvLink.href = candidate.cvRuta ? `${API_URL}${candidate.cvRuta}` : "#";
 
   modal.classList.remove("hidden");
 }

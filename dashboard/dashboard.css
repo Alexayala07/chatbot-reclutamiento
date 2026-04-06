@@ -1,0 +1,284 @@
+/* =========================
+   VARIABLES (ESTILO CORPORATIVO)
+========================= */
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --panel-soft: #fafafa;
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+
+  --primary: #000000;
+  --accent: #1f2937;
+
+  --success: #16a34a;
+  --danger: #dc2626;
+
+  --radius: 16px;
+  --shadow-soft: 0 8px 30px rgba(0,0,0,0.05);
+  --shadow-strong: 0 20px 60px rgba(0,0,0,0.12);
+}
+
+/* =========================
+   BASE
+========================= */
+body {
+  margin: 0;
+  font-family: Inter, system-ui;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* =========================
+   TOPBAR
+========================= */
+.topbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.corporativo-logo {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #f3f4f6;
+  padding: 6px;
+}
+
+/* =========================
+   CONTENEDOR
+========================= */
+.dashboard-container {
+  padding: 30px;
+}
+
+/* =========================
+   HEAD
+========================= */
+.dashboard-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dashboard-head h2 {
+  margin: 0;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* =========================
+   BOTONES
+========================= */
+.btn {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.btn--primary {
+  background: #000;
+  color: white;
+}
+
+.btn--primary:hover {
+  background: #222;
+}
+
+.btn--secondary {
+  background: #f3f4f6;
+}
+
+.btn--secondary:hover {
+  background: #e5e7eb;
+}
+
+/* =========================
+   STATS
+========================= */
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 25px;
+}
+
+.stat-box {
+  background: var(--panel);
+  padding: 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+}
+
+.stat-box span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stat-box strong {
+  display: block;
+  font-size: 28px;
+  margin-top: 6px;
+}
+
+/* =========================
+   GRID CANDIDATOS
+========================= */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+/* =========================
+   CARD
+========================= */
+.dashboard-card {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+  transition: 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-strong);
+}
+
+/* HEADER CARD */
+.dashboard-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.dashboard-card__top h3 {
+  margin: 0;
+}
+
+.dashboard-card__top p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* INFO */
+.dashboard-card__info p {
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+/* =========================
+   ESTADOS
+========================= */
+.estado {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.estado--pendiente {
+  background: #f3f4f6;
+}
+
+.estado--aprobado {
+  background: #dcfce7;
+  color: var(--success);
+}
+
+.estado--rechazado {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+/* =========================
+   MODAL
+========================= */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+}
+
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+}
+
+.modal__content {
+  position: relative;
+  width: 600px;
+  max-width: 95%;
+  margin: 5% auto;
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: var(--shadow-strong);
+  overflow: hidden;
+}
+
+.modal-section p,
+.modal-item strong,
+.dashboard-card__info p,
+.dashboard-card__top h3 {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.modal__body {
+  margin-top: 20px;
+  max-width: 100%;
+}
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal__body {
+  margin-top: 20px;
+}
+
+.modal__footer {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* =========================
+   STATUS
+========================= */
+.status {
+  padding: 12px;
+  border-radius: 12px;
+  background: #f3f4f6;
+  margin-bottom: 15px;
+}
+
+.hidden {
+  display: none;
+}
