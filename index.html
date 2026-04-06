@@ -5,13 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reclutamiento Inteligente</title>
 
-  <!-- SEO básico -->
   <meta name="description" content="Plataforma de reclutamiento inteligente para vacantes en restaurantes. Encuentra empleo fácilmente." />
-
-  <!-- CSS -->
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- Scroll suave -->
   <style>
     html {
       scroll-behavior: smooth;
@@ -21,21 +17,20 @@
 
 <body>
   
-  <!-- 🔹 TOP BAR -->
-<header class="topbar">
-  <div class="topbar__left">
-    <img 
-      src="/img/gaho.png" 
-      alt="GA Hospitality" 
-      class="corporativo-logo"
-    />
-    <div>
-      <h2>GA Hospitality</h2>
-      <p>Plataforma de reclutamiento inteligente</p>
+  <header class="topbar">
+    <div class="topbar__left">
+      <img 
+        src="/img/gaho.png" 
+        alt="GA Hospitality" 
+        class="corporativo-logo"
+      />
+      <div>
+        <h2>GA Hospitality</h2>
+        <p>Plataforma de reclutamiento inteligente</p>
+      </div>
     </div>
-  </div>
-</header>
-  <!-- 🔹 HERO -->
+  </header>
+
   <header class="hero">
     <div class="hero__content">
       <span class="badge">IA para Reclutamiento</span>
@@ -53,46 +48,71 @@
     </div>
   </header>
 
-  <!-- 🔹 CONTENIDO -->
   <main class="container">
 
-    <!-- 🔹 FORMULARIO -->
     <section id="registro" class="card">
       <div class="section-head">
         <h2>Perfil inicial del candidato</h2>
         <p>Completa esta información para recibir sugerencias más precisas.</p>
       </div>
 
-      <form id="candidate-form" class="form-grid">
+      <form id="candidate-form" class="form-grid" enctype="multipart/form-data">
 
         <div class="field">
           <label for="nombre">Nombre completo</label>
-          <input id="nombre" type="text" placeholder="" />
+          <input id="nombre" name="nombre" type="text" placeholder="Escribe tu nombre completo" />
         </div>
 
         <div class="field">
           <label for="ciudad">Ciudad</label>
-          <input id="ciudad" type="text" placeholder="" />
+          <input id="ciudad" name="ciudad" type="text" placeholder="Ej. Ciudad Juárez" />
         </div>
 
         <div class="field">
           <label for="puestoInteres">Puesto de interés</label>
-          <input id="puestoInteres" type="text" placeholder="" />
+          <input id="puestoInteres" name="puestoInteres" type="text" placeholder="Ej. Hostess, Cajero, Cocina" />
         </div>
 
         <div class="field">
           <label for="escolaridad">Escolaridad</label>
-          <input id="escolaridad" type="text" placeholder="" />
+          <input id="escolaridad" name="escolaridad" type="text" placeholder="Ej. Preparatoria terminada" />
         </div>
 
         <div class="field field--full">
           <label for="experiencia">Experiencia laboral</label>
-          <textarea id="experiencia" rows="4" placeholder=""></textarea>
+          <textarea id="experiencia" name="experiencia" rows="4" placeholder="Describe tu experiencia laboral"></textarea>
         </div>
 
         <div class="field field--full">
           <label for="habilidades">Habilidades</label>
-          <textarea id="habilidades" rows="3" placeholder=""></textarea>
+          <textarea id="habilidades" name="habilidades" rows="3" placeholder="Ej. Atención al cliente, caja, cocina, limpieza"></textarea>
+        </div>
+
+        <!-- NUEVO: CARGA DE CV -->
+        <div class="field field--full">
+          <label for="cvFile">Adjuntar CV en PDF</label>
+          <input 
+            id="cvFile" 
+            name="cvFile" 
+            type="file" 
+            accept=".pdf,application/pdf"
+          />
+          <small class="field-help">
+            Sube únicamente tu CV en formato PDF. Procura que sea un documento claro, actualizado y con buena presentación.
+          </small>
+        </div>
+
+        <div class="field field--full cv-tips">
+          <h3>Recomendaciones para un buen CV</h3>
+          <p>Antes de enviarlo, verifica que tu CV incluya lo siguiente:</p>
+          <ul>
+            <li>Nombre completo y datos de contacto actualizados.</li>
+            <li>Puesto o área de interés.</li>
+            <li>Experiencia laboral reciente.</li>
+            <li>Escolaridad.</li>
+            <li>Habilidades principales.</li>
+            <li>Formato limpio, legible y profesional.</li>
+          </ul>
         </div>
 
         <div class="form-actions field--full">
@@ -104,19 +124,15 @@
       <div id="profile-status" class="status hidden"></div>
     </section>
 
-    <!-- 🔹 FRANQUICIAS -->
     <section id="franquicias" class="card">
       <div class="section-head">
         <h2>Franquicias disponibles</h2>
         <p>Selecciona la marca en la que deseas trabajar y revisa sus oportunidades.</p>
       </div>
 
-      <div id="franquicias-list" class="franquicias-grid">
-        <!-- Se llena con JS -->
-      </div>
+      <div id="franquicias-list" class="franquicias-grid"></div>
     </section>
 
-    <!-- 🔹 VACANTES -->
     <section id="ofertas" class="card">
       <div class="section-head">
         <h2>Ofertas laborales</h2>
@@ -125,21 +141,16 @@
         </p>
       </div>
 
-      <div id="vacantes-list" class="vacantes-grid">
-        <!-- Se llena con JS -->
-      </div>
+      <div id="vacantes-list" class="vacantes-grid"></div>
     </section>
 
   </main>
 
-  <!-- 🔹 BOTÓN CHAT -->
   <button id="chatbot-toggle" class="chatbot-toggle" aria-label="Abrir chat">
     💬
   </button>
 
-  <!-- 🔹 CHAT -->
   <aside id="chatbot-box" class="chatbot-box hidden">
-
     <div class="chatbot-header">
       <div>
         <strong>Asistente de Reclutamiento</strong>
@@ -162,11 +173,8 @@
       />
       <button id="chatbot-send" type="submit">Enviar</button>
     </form>
-
   </aside>
 
-  <!-- 🔹 JS -->
   <script src="chatbot.js"></script>
-
 </body>
 </html>

@@ -497,3 +497,48 @@ textarea {
     bottom: 14px;
   }
 }
+.field-help {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cv-tips {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cv-tips h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: #ffffff;
+}
+
+.cv-tips p {
+  margin: 0 0 10px;
+  color: var(--muted);
+}
+
+.cv-tips ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+}
+
+.cv-tips li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+input[type="file"] {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  color: #ffffff;
+  cursor: pointer;
+}

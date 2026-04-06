@@ -2,6 +2,8 @@ import express from "express";
 import OpenAI from "openai";
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
+import multer from "multer";
 import { fileURLToPath } from "url";
 
 dotenv.config();
@@ -12,6 +14,44 @@ const PORT = process.env.PORT || 3000;
 // __dirname en ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// carpeta uploads
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+// configuración multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const safeName = file.originalname.replace(/\s+/g, "_");
+    cb(null, `${timestamp}_${safeName}`);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  const isPdf =
+    file.mimetype === "application/pdf" ||
+    file.originalname.toLowerCase().endsWith(".pdf");
+
+  if (!isPdf) {
+    return cb(new Error("Solo se permiten archivos PDF."));
+  }
+
+  cb(null, true);
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5 MB
+  }
+});
 
 // CORS manual
 app.use((req, res, next) => {
@@ -27,11 +67,16 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
+app.use("/uploads", express.static(uploadsDir));
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// memoria temporal de postulaciones
+const postulaciones = [];
 
 // Ruta de prueba
 app.get("/health", (req, res) => {
@@ -188,6 +233,64 @@ app.get("/api/franquicias", (req, res) => {
   res.json(franquicias);
 });
 
+// NUEVO: guardar postulación con PDF
+app.post("/api/postulacion", upload.single("cvFile"), (req, res) => {
+  try {
+    const {
+      nombre,
+      ciudad,
+      puestoInteres,
+      escolaridad,
+      experiencia,
+      habilidades
+    } = req.body;
+
+    if (!nombre || !ciudad || !puestoInteres) {
+      return res.status(400).json({
+        error: "Faltan campos obligatorios."
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        error: "Debes adjuntar tu CV en PDF."
+      });
+    }
+
+    const postulacion = {
+      id: Date.now().toString(),
+      nombre,
+      ciudad,
+      puestoInteres,
+      escolaridad,
+      experiencia,
+      habilidades,
+      cvNombre: req.file.originalname,
+      cvRuta: `/uploads/${req.file.filename}`,
+      estado: "pendiente",
+      fechaRegistro: new Date().toISOString()
+    };
+
+    postulaciones.push(postulacion);
+
+    res.json({
+      ok: true,
+      message: "Postulación recibida correctamente.",
+      postulacion
+    });
+  } catch (error) {
+    console.error("❌ Error guardando postulación:", error);
+    res.status(500).json({
+      error: "No fue posible guardar la postulación."
+    });
+  }
+});
+
+// NUEVO: listado simple para futuro dashboard
+app.get("/api/postulaciones", (req, res) => {
+  res.json(postulaciones);
+});
+
 // Endpoint del chatbot
 app.post("/chat", async (req, res) => {
   try {
@@ -284,6 +387,23 @@ ${profileText}
 // Ruta principal
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
+});
+
+// manejo de error multer / PDF
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      error: err.message
+    });
+  }
+
+  if (err) {
+    return res.status(400).json({
+      error: err.message || "Error procesando la solicitud"
+    });
+  }
+
+  next();
 });
 
 // Fallback para rutas no encontradas
