@@ -406,6 +406,34 @@ app.use((err, req, res, next) => {
   next();
 });
 
+app.patch("/api/postulaciones/:id/estado", (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  const estadosValidos = ["pendiente", "aprobado", "rechazado"];
+
+  if (!estadosValidos.includes(estado)) {
+    return res.status(400).json({
+      error: "Estado no válido."
+    });
+  }
+
+  const postulacion = postulaciones.find((p) => p.id === id);
+
+  if (!postulacion) {
+    return res.status(404).json({
+      error: "Postulación no encontrada."
+    });
+  }
+
+  postulacion.estado = estado;
+
+  res.json({
+    ok: true,
+    message: "Estado actualizado correctamente.",
+    postulacion
+  });
+});
 // Fallback para rutas no encontradas
 app.use((req, res) => {
   res.status(404).json({
