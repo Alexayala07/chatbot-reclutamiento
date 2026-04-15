@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import pdfParse from "pdf-parse";
 import { fileURLToPath } from "url";
 
 dotenv.config();
@@ -11,21 +12,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// __dirname en ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// carpeta uploads
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
-// configuración multer
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
+  destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
     const timestamp = Date.now();
     const safeName = file.originalname.replace(/\s+/g, "_");
@@ -34,12 +30,16 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const isPdf =
+  const allowed =
     file.mimetype === "application/pdf" ||
-    file.originalname.toLowerCase().endsWith(".pdf");
+    file.mimetype.startsWith("image/") ||
+    file.originalname.toLowerCase().endsWith(".pdf") ||
+    file.originalname.toLowerCase().endsWith(".jpg") ||
+    file.originalname.toLowerCase().endsWith(".jpeg") ||
+    file.originalname.toLowerCase().endsWith(".png");
 
-  if (!isPdf) {
-    return cb(new Error("Solo se permiten archivos PDF."));
+  if (!allowed) {
+    return cb(new Error("Solo se permiten PDF o imágenes."));
   }
 
   cb(null, true);
@@ -48,25 +48,18 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5 MB
-  }
+  limits: { fileSize: 8 * 1024 * 1024 }
 });
 
-// CORS manual
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
+  if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
 
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "3mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 app.use("/uploads", express.static(uploadsDir));
@@ -75,10 +68,193 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// memoria temporal de postulaciones
 const postulaciones = [];
 
-// Ruta de prueba
+const ubicaciones = {
+  "México": {
+    "Chihuahua": ["Ciudad Juárez", "Chihuahua"],
+    "Baja California": ["Mexicali"],
+    "Jalisco": ["Guadalajara"]
+  },
+  "Estados Unidos": {
+    "Texas": ["El Paso"]
+  }
+};
+
+const vacantes = [
+  {
+    id: "vac-001",
+    tipoVacante: "operativa",
+    grupo: "Wendy's",
+    titulo: "Cajero",
+    area: "Operaciones",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
+    sucursal: "Las Misiones",
+    requisitos: ["Atención al cliente", "Manejo básico de caja", "Disponibilidad de horario"]
+  },
+  {
+    id: "vac-002",
+    tipoVacante: "operativa",
+    grupo: "Wendy's",
+    titulo: "Despachador",
+    area: "Servicio",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
+    sucursal: "Ejército Nacional",
+    requisitos: ["Rapidez", "Orden", "Trabajo en equipo"]
+  },
+  {
+    id: "vac-003",
+    tipoVacante: "operativa",
+    grupo: "Little Caesars",
+    titulo: "Auxiliar de Cocina",
+    area: "Cocina",
+    pais: "México",
+    estado: "Baja California",
+    ciudad: "Mexicali",
+    sucursal: "Sendero",
+    requisitos: ["Preparación de alimentos", "Limpieza", "Trabajo bajo presión"]
+  },
+  {
+    id: "vac-004",
+    tipoVacante: "operativa",
+    grupo: "Applebee's",
+    titulo: "Hostess",
+    area: "Recepción",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
+    sucursal: "Tecnológico",
+    requisitos: ["Excelente trato al cliente", "Presentación", "Comunicación"]
+  },
+  {
+    id: "vac-005",
+    tipoVacante: "operativa",
+    grupo: "Great American Steakhouse",
+    titulo: "Parrillero",
+    area: "Cocina",
+    pais: "Estados Unidos",
+    estado: "Texas",
+    ciudad: "El Paso",
+    sucursal: "Main Branch",
+    requisitos: ["Manejo de parrilla", "Cocción de carnes", "Trabajo bajo presión"]
+  },
+  {
+    id: "vac-006",
+    tipoVacante: "operativa",
+    grupo: "Ardeo",
+    titulo: "Chef de Línea",
+    area: "Cocina",
+    pais: "México",
+    estado: "Jalisco",
+    ciudad: "Guadalajara",
+    sucursal: "Ardeo Central",
+    requisitos: ["Cocina gourmet", "Organización", "Trabajo en equipo"]
+  },
+  {
+    id: "vac-007",
+    tipoVacante: "operativa",
+    grupo: "Yoko",
+    titulo: "Sushero",
+    area: "Cocina",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
+    sucursal: "Yoko Norte",
+    requisitos: ["Preparación de sushi", "Limpieza", "Orden"]
+  },
+  {
+    id: "vac-101",
+    tipoVacante: "administrativa",
+    grupo: "Sistemas",
+    titulo: "Auxiliar de Soporte Técnico",
+    area: "Sistemas",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
+    sucursal: "Corporativo",
+    requisitos: ["Soporte técnico", "Redes básicas", "Atención al usuario"]
+  },
+  {
+    id: "vac-102",
+    tipoVacante: "administrativa",
+    grupo: "Contabilidad",
+    titulo: "Auxiliar Contable",
+    area: "Contabilidad",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Chihuahua",
+    sucursal: "Corporativo",
+    requisitos: ["Contabilidad básica", "Excel", "Organización"]
+  },
+  {
+    id: "vac-103",
+    tipoVacante: "administrativa",
+    grupo: "Mercadotecnia",
+    titulo: "Diseñador Jr",
+    area: "Mercadotecnia",
+    pais: "México",
+    estado: "Jalisco",
+    ciudad: "Guadalajara",
+    sucursal: "Corporativo",
+    requisitos: ["Diseño", "Creatividad", "Redes sociales"]
+  },
+  {
+    id: "vac-104",
+    tipoVacante: "administrativa",
+    grupo: "Capital Humano",
+    titulo: "Analista de Reclutamiento",
+    area: "Capital Humano",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
+    sucursal: "Corporativo",
+    requisitos: ["Entrevistas", "Reclutamiento", "Organización"]
+  },
+  {
+    id: "vac-105",
+    tipoVacante: "administrativa",
+    grupo: "Proyectos y Construcción",
+    titulo: "Coordinador de Proyectos",
+    area: "Proyectos y Construcción",
+    pais: "Estados Unidos",
+    estado: "Texas",
+    ciudad: "El Paso",
+    sucursal: "Corporativo",
+    requisitos: ["Planeación", "Seguimiento", "Obra y construcción"]
+  }
+];
+
+function obtenerGruposPorTipo(tipoVacante) {
+  const grupos = [...new Set(vacantes.filter(v => v.tipoVacante === tipoVacante).map(v => v.grupo))];
+  return grupos.sort();
+}
+
+function sugerirVacantesBasicas(texto = "", tipoVacante = "") {
+  const lower = texto.toLowerCase();
+
+  return vacantes
+    .filter(v => !tipoVacante || v.tipoVacante === tipoVacante)
+    .map(v => {
+      let score = 0;
+      const full = `${v.titulo} ${v.area} ${v.requisitos.join(" ")}`.toLowerCase();
+
+      ["cliente", "caja", "cocina", "sushi", "soporte", "sistemas", "excel", "contabilidad", "mercadotecnia", "reclutamiento"].forEach(k => {
+        if (lower.includes(k) && full.includes(k)) score += 20;
+      });
+
+      if (lower.includes(v.area.toLowerCase())) score += 25;
+      if (lower.includes(v.titulo.toLowerCase())) score += 25;
+
+      return { ...v, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+}
+
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
@@ -87,219 +263,216 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Endpoint de franquicias
-app.get("/api/franquicias", (req, res) => {
-  const franquicias = [
-    {
-      id: "Wendys",
-      nombre: "Wendy's",
-      categoria: "Cadena restaurantera",
-      imagen: "/img/wendys.png",
-      descripcion: "Restaurante de comida rápida enfocado en hamburguesas, atención al cliente y operación ágil.",
-      vacantes: [
-        {
-          id: 101,
-          titulo: "Cajero",
-          area: "Operaciones",
-          sucursal: "Juárez - Las Misiones",
-          requisitos: ["Atención al cliente", "Manejo básico de caja", "Disponibilidad de horario"]
-        },
-        {
-          id: 102,
-          titulo: "Despachador",
-          area: "Servicio",
-          sucursal: "Juárez - Ejército Nacional",
-          requisitos: ["Rapidez", "Orden", "Trabajo en equipo"]
-        }
-      ]
-    },
-    {
-      id: "little-caesars",
-      nombre: "Little Caesars",
-      categoria: "Cadena restaurantera",
-      imagen: "/img/littlecaesars.jpg",
-      descripcion: "Pizzería enfocada en producción rápida, atención al cliente y trabajo operativo.",
-      vacantes: [
-        {
-          id: 201,
-          titulo: "Auxiliar de Cocina",
-          area: "Cocina",
-          sucursal: "Juárez - Sendero",
-          requisitos: ["Preparación de alimentos", "Limpieza", "Trabajo bajo presión"]
-        },
-        {
-          id: 202,
-          titulo: "Cajero",
-          area: "Mostrador",
-          sucursal: "Juárez - Tecnológico",
-          requisitos: ["Atención al cliente", "Caja", "Disponibilidad"]
-        }
-      ]
-    },
-    {
-      id: "Applebees",
-      nombre: "Applebee's",
-      categoria: "Franquicia",
-      imagen: "/img/Applebees.png",
-      descripcion: "Restaurante casual dining con vacantes enfocadas en piso, cocina y hospitalidad.",
-      vacantes: [
-        {
-          id: 301,
-          titulo: "Hostess",
-          area: "Recepción",
-          sucursal: "Juárez - Tecnológico",
-          requisitos: ["Excelente trato al cliente", "Presentación", "Comunicación"]
-        },
-        {
-          id: 302,
-          titulo: "Mesero",
-          area: "Piso",
-          sucursal: "Juárez - Consulado",
-          requisitos: ["Servicio al cliente", "Trabajo en equipo", "Disponibilidad"]
-        }
-      ]
-    },
-    {
-      id: "Great-American",
-      nombre: "Great American Steakhouse",
-      categoria: "Restaurante propio",
-      imagen: "/img/greatamerican.png",
-      descripcion: "Concepto steakhouse con enfoque en cocina, servicio premium y experiencia del cliente.",
-      vacantes: [
-        {
-          id: 401,
-          titulo: "Parrillero",
-          area: "Cocina",
-          sucursal: "Juárez - Main Branch",
-          requisitos: ["Manejo de parrilla", "Cocción de carnes", "Trabajo bajo presión"]
-        },
-        {
-          id: 402,
-          titulo: "Capitán de Meseros",
-          area: "Piso",
-          sucursal: "Juárez - Central",
-          requisitos: ["Liderazgo", "Servicio premium", "Experiencia en restaurante"]
-        }
-      ]
-    },
-    {
-      id: "Ardeo",
-      nombre: "Ardeo",
-      categoria: "Restaurante propio gourmet",
-      imagen: "/img/ardeo.png",
-      descripcion: "Concepto gourmet con enfoque en experiencia, servicio y cocina especializada.",
-      vacantes: [
-        {
-          id: 501,
-          titulo: "Chef de Línea",
-          area: "Cocina",
-          sucursal: "Juárez - Ardeo Central",
-          requisitos: ["Cocina gourmet", "Organización", "Trabajo en equipo"]
-        },
-        {
-          id: 502,
-          titulo: "Hostess",
-          area: "Recepción",
-          sucursal: "Juárez - Ardeo Norte",
-          requisitos: ["Excelente imagen", "Trato al cliente", "Comunicación"]
-        }
-      ]
-    },
-    {
-      id: "Yoko",
-      nombre: "Yoko",
-      categoria: "Restaurante propio japonés",
-      imagen: "/img/yoko.png",
-      descripcion: "Restaurante de comida japonesa con especialidad en sushi, ramen y cocina oriental.",
-      vacantes: [
-        {
-          id: 601,
-          titulo: "Sushero",
-          area: "Cocina",
-          sucursal: "Juárez - Yoko Norte",
-          requisitos: ["Preparación de sushi", "Limpieza", "Orden"]
-        },
-        {
-          id: 602,
-          titulo: "Mesero",
-          area: "Piso",
-          sucursal: "Juárez - Yoko Plaza",
-          requisitos: ["Atención al cliente", "Presentación", "Disponibilidad"]
-        }
-      ]
-    }
-  ];
-
-  res.json(franquicias);
+app.get("/api/ubicaciones", (req, res) => {
+  res.json(ubicaciones);
 });
 
-// NUEVO: guardar postulación con PDF
-app.post("/api/postulacion", upload.single("cvFile"), (req, res) => {
-  try {
-    const {
-      nombre,
-      ciudad,
-      puestoInteres,
-      escolaridad,
-      experiencia,
-      habilidades
-    } = req.body;
+app.get("/api/vacantes", (req, res) => {
+  const { tipoVacante, pais, estado, ciudad, grupo } = req.query;
 
-    if (!nombre || !ciudad || !puestoInteres) {
-      return res.status(400).json({
-        error: "Faltan campos obligatorios."
-      });
-    }
+  const resultado = vacantes.filter(v => {
+    return (!tipoVacante || v.tipoVacante === tipoVacante) &&
+           (!pais || v.pais === pais) &&
+           (!estado || v.estado === estado) &&
+           (!ciudad || v.ciudad === ciudad) &&
+           (!grupo || v.grupo === grupo);
+  });
 
-    if (!req.file) {
-      return res.status(400).json({
-        error: "Debes adjuntar tu CV en PDF."
-      });
-    }
+  res.json(resultado);
+});
 
-    const postulacion = {
-      id: Date.now().toString(),
-      nombre,
-      ciudad,
-      puestoInteres,
-      escolaridad,
-      experiencia,
-      habilidades,
-      cvNombre: req.file.originalname,
-      cvRuta: `/uploads/${req.file.filename}`,
-      estado: "pendiente",
-      fechaRegistro: new Date().toISOString()
-    };
-
-    postulaciones.push(postulacion);
-
-    res.json({
-      ok: true,
-      message: "Postulación recibida correctamente.",
-      postulacion
-    });
-  } catch (error) {
-    console.error("❌ Error guardando postulación:", error);
-    res.status(500).json({
-      error: "No fue posible guardar la postulación."
-    });
+app.get("/api/grupos", (req, res) => {
+  const { tipoVacante } = req.query;
+  if (!tipoVacante) {
+    return res.status(400).json({ error: "tipoVacante es obligatorio" });
   }
+  res.json(obtenerGruposPorTipo(tipoVacante));
 });
 
-// NUEVO: listado simple para futuro dashboard
+app.get("/api/postulacion/:id", (req, res) => {
+  const item = postulaciones.find(p => p.id === req.params.id);
+  if (!item) {
+    return res.status(404).json({ error: "Postulación no encontrada" });
+  }
+  res.json(item);
+});
+
+app.post(
+  "/api/postulacion",
+  upload.fields([
+    { name: "cvFile", maxCount: 1 },
+    { name: "ineFile", maxCount: 1 },
+    { name: "curpFile", maxCount: 1 },
+    { name: "domicilioFile", maxCount: 1 }
+  ]),
+  async (req, res) => {
+    try {
+      const {
+        nombre,
+        correo,
+        telefono,
+        edad,
+        pais,
+        estado,
+        ciudad,
+        disponibilidad,
+        tipoVacante,
+        grupoSeleccionado,
+        vacanteSeleccionada,
+        puestoInteres,
+        escolaridad,
+        experiencia,
+        habilidades
+      } = req.body;
+
+      if (!nombre || !correo || !telefono || !pais || !estado || !ciudad || !tipoVacante || !grupoSeleccionado || !vacanteSeleccionada) {
+        return res.status(400).json({ error: "Faltan campos obligatorios." });
+      }
+
+      const cvFile = req.files?.cvFile?.[0];
+      if (!cvFile) {
+        return res.status(400).json({ error: "Debes adjuntar tu CV en PDF." });
+      }
+
+      const vacante = vacantes.find(v => v.id === vacanteSeleccionada);
+      if (!vacante) {
+        return res.status(400).json({ error: "La vacante seleccionada no existe." });
+      }
+
+      let cvTexto = "";
+      try {
+        const pdfBuffer = fs.readFileSync(cvFile.path);
+        const parsed = await pdfParse(pdfBuffer);
+        cvTexto = parsed.text || "";
+      } catch {
+        cvTexto = "";
+      }
+
+      let resumenIA = "No fue posible analizar el CV.";
+      let sugerenciasIA = sugerirVacantesBasicas(`${puestoInteres} ${experiencia} ${habilidades} ${cvTexto}`, tipoVacante);
+
+      if (cvTexto.trim()) {
+        try {
+          const analisisPrompt = `
+Analiza este CV para reclutamiento y devuelve JSON válido con esta estructura:
+{
+  "resumen": "resumen profesional breve",
+  "habilidadesDetectadas": ["..."],
+  "perfilRecomendado": "operativo o administrativo",
+  "observaciones": "..."
+}
+
+CV:
+${cvTexto.slice(0, 12000)}
+`;
+
+          const completion = await openai.chat.completions.create({
+            model: "gpt-5-mini",
+            messages: [
+              { role: "system", content: "Responde solo JSON válido." },
+              { role: "user", content: analisisPrompt }
+            ]
+          });
+
+          const content = completion.choices?.[0]?.message?.content || "{}";
+          const parsed = JSON.parse(content);
+
+          resumenIA = parsed.resumen || resumenIA;
+        } catch {
+          resumenIA = "CV recibido correctamente. El análisis automático no estuvo disponible en este momento.";
+        }
+      }
+
+      const documentos = [];
+      ["ineFile", "curpFile", "domicilioFile"].forEach((key) => {
+        const file = req.files?.[key]?.[0];
+        if (file) {
+          documentos.push({
+            tipo: key,
+            nombre: file.originalname,
+            ruta: `/uploads/${file.filename}`
+          });
+        }
+      });
+
+      const postulacion = {
+        id: Date.now().toString(),
+        nombre,
+        correo,
+        telefono,
+        edad,
+        pais,
+        estado,
+        ciudad,
+        disponibilidad,
+        tipoVacante,
+        grupoSeleccionado,
+        vacanteId: vacante.id,
+        vacanteTitulo: vacante.titulo,
+        puestoInteres,
+        escolaridad,
+        experiencia,
+        habilidades,
+        cvNombre: cvFile.originalname,
+        cvRuta: `/uploads/${cvFile.filename}`,
+        cvTexto,
+        resumenIA,
+        sugerenciasIA,
+        documentos,
+        estadoSolicitud: "pendiente",
+        fechaRegistro: new Date().toISOString()
+      };
+
+      postulaciones.push(postulacion);
+
+      res.json({
+        ok: true,
+        message: "Postulación recibida correctamente.",
+        postulacion
+      });
+    } catch (error) {
+      console.error("❌ Error guardando postulación:", error);
+      res.status(500).json({
+        error: "No fue posible guardar la postulación."
+      });
+    }
+  }
+);
+
 app.get("/api/postulaciones", (req, res) => {
   res.json(postulaciones);
 });
 
-// Endpoint del chatbot
+app.patch("/api/postulaciones/:id/estado", (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+  const estadosValidos = ["pendiente", "aprobado", "rechazado"];
+
+  if (!estadosValidos.includes(estado)) {
+    return res.status(400).json({ error: "Estado no válido." });
+  }
+
+  const postulacion = postulaciones.find((p) => p.id === id);
+
+  if (!postulacion) {
+    return res.status(404).json({ error: "Postulación no encontrada." });
+  }
+
+  postulacion.estadoSolicitud = estado;
+
+  res.json({
+    ok: true,
+    message: "Estado actualizado correctamente.",
+    postulacion
+  });
+});
+
 app.post("/chat", async (req, res) => {
   try {
     const { messages, candidateProfile } = req.body;
 
     if (!Array.isArray(messages)) {
-      return res.status(400).json({
-        error: "El campo messages debe ser un arreglo."
-      });
+      return res.status(400).json({ error: "El campo messages debe ser un arreglo." });
     }
 
     const lastMessages = messages.slice(-10);
@@ -308,40 +481,49 @@ app.post("/chat", async (req, res) => {
       ? `
 Perfil actual del candidato:
 - Nombre: ${candidateProfile.nombre || "No proporcionado"}
-- Puesto de interés: ${candidateProfile.puestoInteres || "No proporcionado"}
-- Experiencia: ${candidateProfile.experiencia || "No proporcionada"}
+- Correo: ${candidateProfile.correo || "No proporcionado"}
+- Teléfono: ${candidateProfile.telefono || "No proporcionado"}
+- Edad: ${candidateProfile.edad || "No proporcionado"}
+- País: ${candidateProfile.pais || "No proporcionado"}
+- Estado: ${candidateProfile.estado || "No proporcionado"}
+- Ciudad: ${candidateProfile.ciudad || "No proporcionado"}
+- Disponibilidad: ${candidateProfile.disponibilidad || "No proporcionado"}
+- Tipo de vacante: ${candidateProfile.tipoVacante || "No proporcionado"}
+- Grupo seleccionado: ${candidateProfile.grupoSeleccionado || "No proporcionado"}
+- Vacante elegida: ${candidateProfile.vacanteTitulo || candidateProfile.puestoInteres || "No proporcionado"}
 - Escolaridad: ${candidateProfile.escolaridad || "No proporcionada"}
+- Experiencia: ${candidateProfile.experiencia || "No proporcionada"}
 - Habilidades: ${candidateProfile.habilidades || "No proporcionadas"}
-- Ciudad: ${candidateProfile.ciudad || "No proporcionada"}
+- CV: ${candidateProfile.cvNombre || "No proporcionado"}
+- Resumen IA del CV: ${candidateProfile.resumenIA || "No disponible"}
 `
       : "No hay perfil capturado todavía.";
 
     const systemPrompt = `
-Eres un asistente virtual profesional del departamento de reclutamiento.
+Eres un asistente virtual profesional del departamento de reclutamiento de GA Hospitality.
 
-Tu función es ayudar a candidatos con:
-- vacantes disponibles
+Ayudas a candidatos con:
+- vacantes operativas y administrativas
 - requisitos de contratación
 - documentos necesarios
-- proceso de reclutamiento
-- orientación inicial según su perfil
-- sugerencias de vacantes según experiencia
+- orientación según su CV
+- sugerencias de vacantes
+- seguimiento inicial de su proceso
 
-Debes responder:
+Responde:
 - en español
 - claro
 - profesional
 - útil
-- breve pero con valor
+- directo
 
 Reglas:
-1. Si el candidato pregunta por vacantes, oriéntalo con base en su perfil si existe.
-2. Si pregunta por documentos, menciona normalmente: INE, CURP, comprobante de domicilio, NSS y CV, aclarando que puede variar según la vacante.
-3. Si no tienes datos suficientes, pide al candidato su experiencia, puesto deseado o ciudad.
-4. Si el usuario menciona una franquicia como Wendy's, Little Caesars, Applebee's, Great American Steakhouse, Ardeo o Yoko, responde de forma relacionada con esa marca.
-5. No inventes procesos internos complejos.
-6. No respondas temas fuera de reclutamiento; redirígelo amablemente.
-7. Si el perfil parece encajar con una vacante operativa, sugiérela con tono positivo.
+1. Usa el perfil y el resumen IA del CV para responder mejor.
+2. Si el candidato ya eligió una vacante, enfoca tu respuesta en esa vacante.
+3. Si el CV sugiere mejor ajuste a otra vacante, dilo de forma amable.
+4. Si pregunta por estatus, explícale que use su folio en la sección de consulta.
+5. No inventes políticas internas.
+6. Si pregunta algo fuera de reclutamiento, redirígelo cortésmente.
 
 ${profileText}
 `;
@@ -349,10 +531,7 @@ ${profileText}
     const completion = await openai.chat.completions.create({
       model: "gpt-5-mini",
       messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
+        { role: "system", content: systemPrompt },
         ...lastMessages,
       ],
     });
@@ -384,61 +563,22 @@ ${profileText}
   }
 });
 
-// Ruta principal
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// manejo de error multer / PDF
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
-    return res.status(400).json({
-      error: err.message
-    });
+    return res.status(400).json({ error: err.message });
   }
-
   if (err) {
-    return res.status(400).json({
-      error: err.message || "Error procesando la solicitud"
-    });
+    return res.status(400).json({ error: err.message || "Error procesando la solicitud" });
   }
-
   next();
 });
 
-app.patch("/api/postulaciones/:id/estado", (req, res) => {
-  const { id } = req.params;
-  const { estado } = req.body;
-
-  const estadosValidos = ["pendiente", "aprobado", "rechazado"];
-
-  if (!estadosValidos.includes(estado)) {
-    return res.status(400).json({
-      error: "Estado no válido."
-    });
-  }
-
-  const postulacion = postulaciones.find((p) => p.id === id);
-
-  if (!postulacion) {
-    return res.status(404).json({
-      error: "Postulación no encontrada."
-    });
-  }
-
-  postulacion.estado = estado;
-
-  res.json({
-    ok: true,
-    message: "Estado actualizado correctamente.",
-    postulacion
-  });
-});
-// Fallback para rutas no encontradas
 app.use((req, res) => {
-  res.status(404).json({
-    error: "Ruta no encontrada"
-  });
+  res.status(404).json({ error: "Ruta no encontrada" });
 });
 
 app.listen(PORT, () => {

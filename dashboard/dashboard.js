@@ -124,7 +124,7 @@ function renderPostulaciones() {
 
 function openModal(candidate) {
   selectedCandidate = candidate;
-
+  
   modalNombre.textContent = candidate.nombre || "Sin nombre";
   modalEstado.textContent = `Estado: ${candidate.estado || "pendiente"}`;
   modalCiudad.textContent = candidate.ciudad || "-";
