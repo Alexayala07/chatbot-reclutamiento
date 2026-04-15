@@ -14,18 +14,23 @@
 
   --success: #16a34a;
   --danger: #dc2626;
+  --warning: #b45309;
 
   --radius: 16px;
-  --shadow-soft: 0 8px 30px rgba(0,0,0,0.05);
-  --shadow-strong: 0 20px 60px rgba(0,0,0,0.12);
+  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.05);
+  --shadow-strong: 0 20px 60px rgba(0, 0, 0, 0.12);
 }
 
 /* =========================
    BASE
 ========================= */
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: Inter, system-ui;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--text);
 }
@@ -48,6 +53,17 @@ body {
   gap: 14px;
 }
 
+.topbar__left h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.topbar__left p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .corporativo-logo {
   width: 50px;
   height: 50px;
@@ -60,8 +76,35 @@ body {
 /* =========================
    CONTENEDOR
 ========================= */
+.container {
+  width: min(1200px, 94%);
+  margin: 0 auto;
+}
+
 .dashboard-container {
-  padding: 30px;
+  padding: 30px 0 40px;
+}
+
+/* =========================
+   TARJETAS GENERALES
+========================= */
+.card {
+  background: var(--panel);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.section-head h2 {
+  margin: 0 0 8px;
+}
+
+.section-head p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 /* =========================
@@ -71,7 +114,9 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 14px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .dashboard-head h2 {
@@ -81,6 +126,7 @@ body {
 .dashboard-actions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* =========================
@@ -93,6 +139,10 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn--primary {
@@ -106,6 +156,8 @@ body {
 
 .btn--secondary {
   background: #f3f4f6;
+  color: #111827;
+  border: 1px solid #e5e7eb;
 }
 
 .btn--secondary:hover {
@@ -142,7 +194,7 @@ body {
 }
 
 /* =========================
-   GRID CANDIDATOS
+   GRID
 ========================= */
 .dashboard-grid {
   display: grid;
@@ -167,15 +219,17 @@ body {
   box-shadow: var(--shadow-strong);
 }
 
-/* HEADER CARD */
 .dashboard-card__top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 12px;
 }
 
 .dashboard-card__top h3 {
   margin: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .dashboard-card__top p {
@@ -184,10 +238,23 @@ body {
   font-size: 13px;
 }
 
-/* INFO */
+.dashboard-card__info {
+  margin-top: 14px;
+}
+
 .dashboard-card__info p {
   margin: 6px 0;
   font-size: 14px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.dashboard-card__actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* =========================
@@ -198,10 +265,13 @@ body {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+  text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .estado--pendiente {
   background: #f3f4f6;
+  color: #111827;
 }
 
 .estado--aprobado {
@@ -212,6 +282,76 @@ body {
 .estado--rechazado {
   background: #fee2e2;
   color: var(--danger);
+}
+
+/* =========================
+   FORMULARIO
+========================= */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px 14px;
+  outline: none;
+  font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #c7cdd6;
+  box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.06);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6b7280 50%),
+    linear-gradient(135deg, #6b7280 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: #9ca3af;
 }
 
 /* =========================
@@ -226,40 +366,45 @@ body {
 .modal__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .modal__content {
   position: relative;
-  width: 600px;
+  width: 700px;
   max-width: 95%;
-  margin: 5% auto;
+  max-height: 88vh;
+  overflow-y: auto;
+  margin: 4vh auto;
   background: white;
   border-radius: 20px;
   padding: 20px;
   box-shadow: var(--shadow-strong);
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
-.modal-section p,
-.modal-item strong,
-.dashboard-card__info p,
-.dashboard-card__top h3 {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-.modal__body {
-  margin-top: 20px;
-  max-width: 100%;
-}
 .modal__header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal__header h3 {
+  margin: 0 0 6px;
+}
+
+.modal__header p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .modal__body {
   margin-top: 20px;
+  max-width: 100%;
 }
 
 .modal__footer {
@@ -267,18 +412,138 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.modal-item {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.modal-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.modal-item strong,
+.modal-section p,
+.dashboard-card__info p,
+.dashboard-card__top h3 {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.modal-section {
+  margin-top: 18px;
+}
+
+.modal-section h4 {
+  margin: 0 0 8px;
+}
+
+.modal-section p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* =========================
+   BOTÓN CERRAR
+========================= */
+.chatbot-close {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f9fafb;
+  color: var(--text);
+  cursor: pointer;
 }
 
 /* =========================
    STATUS
 ========================= */
 .status {
-  padding: 12px;
+  padding: 12px 14px;
   border-radius: 12px;
   background: #f3f4f6;
   margin-bottom: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .hidden {
-  display: none;
+  display: none !important;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 900px) {
+  .dashboard-head {
+    align-items: flex-start;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    padding: 12px 16px;
+  }
+
+  .dashboard-container {
+    padding: 20px 0 30px;
+  }
+
+  .card {
+    padding: 18px;
+  }
+
+  .dashboard-actions {
+    width: 100%;
+  }
+
+  .dashboard-actions .btn {
+    width: 100%;
+  }
+
+  .dashboard-card__top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .modal__content {
+    margin: 2vh auto;
+    padding: 16px;
+    max-height: 92vh;
+  }
+
+  .modal__footer {
+    flex-direction: column;
+  }
+
+  .modal__footer .btn {
+    width: 100%;
+  }
 }
