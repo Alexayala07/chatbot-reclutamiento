@@ -4,8 +4,10 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
-import pdfParse from "pdf-parse";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
 dotenv.config();
 

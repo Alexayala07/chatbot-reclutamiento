@@ -1,18 +1,16 @@
 {
   "name": "chatbot-reclutamiento",
   "version": "1.0.0",
-  "description": "Plataforma base de reclutamiento con chatbot y vacantes",
-  "main": "server.js",
   "type": "module",
+  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "multer": "^2.1.1",
+    "multer": "^1.4.5-lts.1",
     "openai": "^6.1.0",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^1.1.1"
   }
 }
