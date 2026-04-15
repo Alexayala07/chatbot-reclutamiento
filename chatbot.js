@@ -215,14 +215,14 @@ async function cargarVacantesVista() {
 
   document.querySelectorAll(".interes-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const vacante = vacantesData.find(v => v.id === btn.dataset.id);
+      const vacante = vacantesData.find((v) => v.id === btn.dataset.id);
       if (!vacante) return;
 
       openChat();
 
       applicationFlow = {
         active: true,
-        step: 6,
+        step: 7,
         data: {
           tipoVacante: vacante.tipoVacante,
           pais: vacante.pais,
@@ -367,7 +367,7 @@ async function handleApplicationFlow(userText) {
         content:
           "Estas son las vacantes disponibles:\n" +
           vacs.map((v, i) => `${i + 1}. ${v.titulo} - ${v.grupo} - ${v.ciudad}`).join("\n") +
-          "\n\nEscríbeme el número de la vacante que te interesa."
+          "\n\nEscríbeme el número de la vacante que te interesa. Ejemplo: 1"
       });
       break;
     }
@@ -379,7 +379,7 @@ async function handleApplicationFlow(userText) {
       if (!vacante) {
         chatHistory.push({
           role: "assistant",
-          content: "No reconocí esa opción. Escríbeme el número de la vacante que te interesa."
+          content: "No reconocí esa opción. Escríbeme el número de la vacante que te interesa. Ejemplo: 1"
         });
         break;
       }
@@ -488,7 +488,9 @@ async function submitApplicationFromChat() {
 
   const formData = new FormData();
   Object.entries(applicationFlow.data).forEach(([key, value]) => {
-    if (value && key !== "vacantesDisponibles") formData.append(key, value);
+    if (value && key !== "vacantesDisponibles") {
+      formData.append(key, value);
+    }
   });
 
   formData.append("vacanteSeleccionada", applicationFlow.data.vacanteId);

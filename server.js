@@ -356,7 +356,7 @@ function sugerirVacantesBasicas(texto = "", tipoVacante = "") {
       let score = 0;
       const full = `${v.titulo} ${v.area} ${v.requisitos.join(" ")}`.toLowerCase();
 
-      ["cliente", "caja", "cocina", "sushi", "soporte", "sistemas", "excel", "contabilidad", "mercadotecnia", "reclutamiento"].forEach(k => {
+      ["cliente", "caja", "cocina", "sushi", "soporte", "sistemas", "excel", "contabilidad", "mercadotecnia", "reclutamiento"].forEach((k) => {
         if (lower.includes(k) && full.includes(k)) score += 20;
       });
 
@@ -391,12 +391,12 @@ app.get("/api/ubicaciones", (req, res) => {
 app.get("/api/vacantes", (req, res) => {
   const { tipoVacante, pais, estado, ciudad, grupo } = req.query;
 
-  const resultado = vacantes.filter(v => {
+  const resultado = vacantes.filter((v) => {
     return (!tipoVacante || v.tipoVacante === tipoVacante) &&
-           (!pais || v.pais === pais) &&
-           (!estado || v.estado === estado) &&
-           (!ciudad || v.ciudad === ciudad) &&
-           (!grupo || v.grupo === grupo);
+      (!pais || v.pais === pais) &&
+      (!estado || v.estado === estado) &&
+      (!ciudad || v.ciudad === ciudad) &&
+      (!grupo || v.grupo === grupo);
   });
 
   res.json(resultado);
@@ -411,7 +411,7 @@ app.get("/api/grupos", (req, res) => {
 });
 
 app.get("/api/postulacion/:id", (req, res) => {
-  const item = postulaciones.find(p => p.id === req.params.id);
+  const item = postulaciones.find((p) => p.id === req.params.id);
   if (!item) {
     return res.status(404).json({ error: "Postulación no encontrada" });
   }
@@ -455,7 +455,7 @@ app.post(
         return res.status(400).json({ error: "Debes adjuntar tu CV en PDF." });
       }
 
-      const vacante = vacantes.find(v => v.id === vacanteSeleccionada);
+      const vacante = vacantes.find((v) => v.id === vacanteSeleccionada);
       if (!vacante) {
         return res.status(400).json({ error: "La vacante seleccionada no existe." });
       }
@@ -470,7 +470,10 @@ app.post(
       }
 
       let resumenIA = "No fue posible analizar el CV.";
-      let sugerenciasIA = sugerirVacantesBasicas(`${puestoInteres} ${experiencia} ${habilidades} ${cvTexto}`, tipoVacante);
+      const sugerenciasIA = sugerirVacantesBasicas(
+        `${puestoInteres} ${experiencia} ${habilidades} ${cvTexto}`,
+        tipoVacante
+      );
 
       if (cvTexto.trim()) {
         try {
@@ -497,7 +500,6 @@ ${cvTexto.slice(0, 12000)}
 
           const content = completion.choices?.[0]?.message?.content || "{}";
           const parsed = JSON.parse(limpiarJsonRespuesta(content));
-
           resumenIA = parsed.resumen || resumenIA;
         } catch {
           resumenIA = "CV recibido correctamente. El análisis automático no estuvo disponible en este momento.";
@@ -585,6 +587,131 @@ app.patch("/api/postulaciones/:id/estado", (req, res) => {
     ok: true,
     message: "Estado actualizado correctamente.",
     postulacion
+  });
+});
+
+/* =========================
+   CRUD VACANTES
+========================= */
+app.post("/api/vacantes", (req, res) => {
+  const {
+    tipoVacante,
+    grupo,
+    titulo,
+    area,
+    pais,
+    estado,
+    ciudad,
+    sucursal,
+    requisitos
+  } = req.body;
+
+  if (
+    !tipoVacante ||
+    !grupo ||
+    !titulo ||
+    !area ||
+    !pais ||
+    !estado ||
+    !ciudad ||
+    !sucursal ||
+    !Array.isArray(requisitos) ||
+    !requisitos.length
+  ) {
+    return res.status(400).json({ error: "Faltan campos obligatorios para la vacante." });
+  }
+
+  const nuevaVacante = {
+    id: `vac-${Date.now()}`,
+    tipoVacante,
+    grupo,
+    titulo,
+    area,
+    pais,
+    estado,
+    ciudad,
+    sucursal,
+    requisitos
+  };
+
+  vacantes.push(nuevaVacante);
+
+  res.json({
+    ok: true,
+    message: "Vacante creada correctamente.",
+    vacante: nuevaVacante
+  });
+});
+
+app.put("/api/vacantes/:id", (req, res) => {
+  const { id } = req.params;
+  const index = vacantes.findIndex((v) => v.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ error: "Vacante no encontrada." });
+  }
+
+  const {
+    tipoVacante,
+    grupo,
+    titulo,
+    area,
+    pais,
+    estado,
+    ciudad,
+    sucursal,
+    requisitos
+  } = req.body;
+
+  if (
+    !tipoVacante ||
+    !grupo ||
+    !titulo ||
+    !area ||
+    !pais ||
+    !estado ||
+    !ciudad ||
+    !sucursal ||
+    !Array.isArray(requisitos) ||
+    !requisitos.length
+  ) {
+    return res.status(400).json({ error: "Faltan campos obligatorios para actualizar la vacante." });
+  }
+
+  vacantes[index] = {
+    ...vacantes[index],
+    tipoVacante,
+    grupo,
+    titulo,
+    area,
+    pais,
+    estado,
+    ciudad,
+    sucursal,
+    requisitos
+  };
+
+  res.json({
+    ok: true,
+    message: "Vacante actualizada correctamente.",
+    vacante: vacantes[index]
+  });
+});
+
+app.delete("/api/vacantes/:id", (req, res) => {
+  const { id } = req.params;
+  const index = vacantes.findIndex((v) => v.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ error: "Vacante no encontrada." });
+  }
+
+  const eliminada = vacantes.splice(index, 1)[0];
+
+  res.json({
+    ok: true,
+    message: "Vacante eliminada correctamente.",
+    vacante: eliminada
   });
 });
 
