@@ -7,20 +7,7 @@ const messagesDiv = document.getElementById("chatbot-messages");
 const form = document.getElementById("chatbot-form");
 const input = document.getElementById("chatbot-input");
 
-const candidateForm = document.getElementById("candidate-form");
-const profileStatus = document.getElementById("profile-status");
 const vacantesList = document.getElementById("vacantes-list");
-const cvFileInput = document.getElementById("cvFile");
-const ineFileInput = document.getElementById("ineFile");
-const curpFileInput = document.getElementById("curpFile");
-const domicilioFileInput = document.getElementById("domicilioFile");
-
-const paisSelect = document.getElementById("pais");
-const estadoSelect = document.getElementById("estado");
-const ciudadSelect = document.getElementById("ciudad");
-const tipoVacanteSelect = document.getElementById("tipoVacante");
-const grupoSeleccionadoSelect = document.getElementById("grupoSeleccionado");
-const vacanteSeleccionadaSelect = document.getElementById("vacanteSeleccionada");
 
 const filtroTipo = document.getElementById("filtroTipo");
 const filtroPais = document.getElementById("filtroPais");
@@ -31,8 +18,33 @@ const consultarStatusBtn = document.getElementById("consultarStatusBtn");
 const folioConsulta = document.getElementById("folioConsulta");
 const consultaStatusResultado = document.getElementById("consultaStatusResultado");
 
+const startApplicationBtn = document.getElementById("startApplicationBtn");
+const startApplicationBtnSecondary = document.getElementById("startApplicationBtnSecondary");
+
+const attachCvBtn = document.getElementById("attachCvBtn");
+const chatCvFile = document.getElementById("chatCvFile");
+
+const attachIneBtn = document.getElementById("attachIneBtn");
+const chatIneFile = document.getElementById("chatIneFile");
+
+const attachCurpBtn = document.getElementById("attachCurpBtn");
+const chatCurpFile = document.getElementById("chatCurpFile");
+
+const attachDomicilioBtn = document.getElementById("attachDomicilioBtn");
+const chatDomicilioFile = document.getElementById("chatDomicilioFile");
+
 let ubicaciones = {};
 let vacantesData = [];
+
+let applicationFlow = {
+  active: false,
+  step: 0,
+  data: {},
+  cvFile: null,
+  ineFile: null,
+  curpFile: null,
+  domicilioFile: null
+};
 
 let candidateProfile = {
   nombre: "",
@@ -125,30 +137,6 @@ async function sendMessageToBot(userText) {
   renderMessages();
 }
 
-function getCandidateProfileFromForm() {
-  return {
-    nombre: document.getElementById("nombre")?.value.trim() || "",
-    correo: document.getElementById("correo")?.value.trim() || "",
-    telefono: document.getElementById("telefono")?.value.trim() || "",
-    edad: document.getElementById("edad")?.value.trim() || "",
-    pais: paisSelect?.value || "",
-    estado: estadoSelect?.value || "",
-    ciudad: ciudadSelect?.value || "",
-    disponibilidad: document.getElementById("disponibilidad")?.value || "",
-    tipoVacante: tipoVacanteSelect?.value || "",
-    grupoSeleccionado: grupoSeleccionadoSelect?.value || "",
-    vacanteId: vacanteSeleccionadaSelect?.value || "",
-    vacanteTitulo: vacanteSeleccionadaSelect?.selectedOptions?.[0]?.text || "",
-    puestoInteres: document.getElementById("puestoInteres")?.value.trim() || "",
-    escolaridad: document.getElementById("escolaridad")?.value.trim() || "",
-    experiencia: document.getElementById("experiencia")?.value.trim() || "",
-    habilidades: document.getElementById("habilidades")?.value.trim() || "",
-    cvNombre: candidateProfile.cvNombre || "",
-    postulacionId: candidateProfile.postulacionId || "",
-    resumenIA: candidateProfile.resumenIA || ""
-  };
-}
-
 async function cargarUbicaciones() {
   const res = await fetch(`${API_URL}/api/ubicaciones`);
   ubicaciones = await res.json();
@@ -156,8 +144,8 @@ async function cargarUbicaciones() {
 
 function llenarEstados(selectPais, targetEstado, targetCiudad) {
   const pais = selectPais.value;
-  targetEstado.innerHTML = `<option value="">Selecciona un estado</option>`;
-  targetCiudad.innerHTML = `<option value="">Selecciona una ciudad</option>`;
+  targetEstado.innerHTML = `<option value="">Todos</option>`;
+  targetCiudad.innerHTML = `<option value="">Todas</option>`;
 
   if (!pais || !ubicaciones[pais]) return;
 
@@ -173,7 +161,7 @@ function llenarCiudades(selectPais, selectEstado, targetCiudad) {
   const pais = selectPais.value;
   const estado = selectEstado.value;
 
-  targetCiudad.innerHTML = `<option value="">Selecciona una ciudad</option>`;
+  targetCiudad.innerHTML = `<option value="">Todas</option>`;
 
   if (!pais || !estado || !ubicaciones[pais]?.[estado]) return;
 
@@ -182,44 +170,6 @@ function llenarCiudades(selectPais, selectEstado, targetCiudad) {
     option.value = ciudad;
     option.textContent = ciudad;
     targetCiudad.appendChild(option);
-  });
-}
-
-async function cargarGruposPorTipo(tipoVacante) {
-  grupoSeleccionadoSelect.innerHTML = `<option value="">Selecciona una opción</option>`;
-  vacanteSeleccionadaSelect.innerHTML = `<option value="">Selecciona una vacante</option>`;
-  if (!tipoVacante) return;
-
-  const res = await fetch(`${API_URL}/api/grupos?tipoVacante=${encodeURIComponent(tipoVacante)}`);
-  const grupos = await res.json();
-
-  grupos.forEach((grupo) => {
-    const option = document.createElement("option");
-    option.value = grupo;
-    option.textContent = grupo;
-    grupoSeleccionadoSelect.appendChild(option);
-  });
-}
-
-async function cargarVacantesParaFormulario() {
-  vacanteSeleccionadaSelect.innerHTML = `<option value="">Selecciona una vacante</option>`;
-
-  const params = new URLSearchParams({
-    tipoVacante: tipoVacanteSelect.value,
-    pais: paisSelect.value,
-    estado: estadoSelect.value,
-    ciudad: ciudadSelect.value,
-    grupo: grupoSeleccionadoSelect.value
-  });
-
-  const res = await fetch(`${API_URL}/api/vacantes?${params.toString()}`);
-  const vacantes = await res.json();
-
-  vacantes.forEach((vacante) => {
-    const option = document.createElement("option");
-    option.value = vacante.id;
-    option.textContent = `${vacante.titulo} - ${vacante.grupo} - ${vacante.ciudad}`;
-    vacanteSeleccionadaSelect.appendChild(option);
   });
 }
 
@@ -268,22 +218,33 @@ async function cargarVacantesVista() {
       const vacante = vacantesData.find(v => v.id === btn.dataset.id);
       if (!vacante) return;
 
-      tipoVacanteSelect.value = vacante.tipoVacante;
-      await cargarGruposPorTipo(vacante.tipoVacante);
-
-      paisSelect.value = vacante.pais;
-      llenarEstados(paisSelect, estadoSelect, ciudadSelect);
-      estadoSelect.value = vacante.estado;
-      llenarCiudades(paisSelect, estadoSelect, ciudadSelect);
-      ciudadSelect.value = vacante.ciudad;
-
-      grupoSeleccionadoSelect.value = vacante.grupo;
-      await cargarVacantesParaFormulario();
-      vacanteSeleccionadaSelect.value = vacante.id;
-      document.getElementById("puestoInteres").value = vacante.titulo;
-
       openChat();
-      await sendMessageToBot(`Me interesa la vacante ${vacante.titulo} de ${vacante.grupo} en ${vacante.ciudad}. ¿Qué requisitos necesito y cómo encaja mi perfil?`);
+
+      applicationFlow = {
+        active: true,
+        step: 6,
+        data: {
+          tipoVacante: vacante.tipoVacante,
+          pais: vacante.pais,
+          estado: vacante.estado,
+          ciudad: vacante.ciudad,
+          grupoSeleccionado: vacante.grupo,
+          vacanteId: vacante.id,
+          vacanteTitulo: vacante.titulo,
+          puestoInteres: vacante.titulo
+        },
+        cvFile: null,
+        ineFile: null,
+        curpFile: null,
+        domicilioFile: null
+      };
+
+      chatHistory.push({
+        role: "assistant",
+        content: `Perfecto. Ya registré tu interés en la vacante "${vacante.titulo}" de ${vacante.grupo} en ${vacante.ciudad}. Ahora dime: ¿cuál es tu nombre completo?`
+      });
+
+      renderMessages();
     });
   });
 }
@@ -305,43 +266,287 @@ async function consultarEstatus() {
     }
 
     consultaStatusResultado.classList.remove("hidden");
-    consultaStatusResultado.textContent = `✅ Estado actual: ${data.estadoSolicitud || "pendiente"} | Vacante: ${data.vacanteTitulo || "-"} | Ciudad: ${data.ciudad || "-"}`;
+    consultaStatusResultado.textContent =
+      `✅ Estado actual: ${data.estadoSolicitud || "pendiente"} | Vacante: ${data.vacanteTitulo || "-"} | Ciudad: ${data.ciudad || "-"}`;
   } catch (error) {
     consultaStatusResultado.classList.remove("hidden");
     consultaStatusResultado.textContent = `⚠️ ${error.message}`;
   }
 }
 
+function startApplicationFlow() {
+  applicationFlow = {
+    active: true,
+    step: 1,
+    data: {},
+    cvFile: null,
+    ineFile: null,
+    curpFile: null,
+    domicilioFile: null
+  };
+
+  openChat();
+
+  chatHistory.push({
+    role: "assistant",
+    content: "Perfecto. Vamos a iniciar tu postulación. Primero dime: ¿buscas una vacante operativa/restaurante o administrativa/corporativo?"
+  });
+
+  renderMessages();
+}
+
+async function handleApplicationFlow(userText) {
+  const text = userText.trim();
+
+  switch (applicationFlow.step) {
+    case 1:
+      applicationFlow.data.tipoVacante = text.toLowerCase().includes("admin") ? "administrativa" : "operativa";
+      applicationFlow.step = 2;
+      chatHistory.push({
+        role: "assistant",
+        content: "¿En qué país te interesa trabajar? Ejemplo: México o Estados Unidos."
+      });
+      break;
+
+    case 2:
+      applicationFlow.data.pais = text;
+      applicationFlow.step = 3;
+      chatHistory.push({
+        role: "assistant",
+        content: "¿En qué estado te interesa trabajar?"
+      });
+      break;
+
+    case 3:
+      applicationFlow.data.estado = text;
+      applicationFlow.step = 4;
+      chatHistory.push({
+        role: "assistant",
+        content: "¿En qué ciudad te interesa trabajar?"
+      });
+      break;
+
+    case 4:
+      applicationFlow.data.ciudad = text;
+      applicationFlow.step = 5;
+      chatHistory.push({
+        role: "assistant",
+        content: applicationFlow.data.tipoVacante === "operativa"
+          ? "¿Qué marca te interesa? Ejemplo: Wendy's, Applebee's, Great American, Ardeo, Yoko o Little Caesars."
+          : "¿Qué departamento te interesa? Ejemplo: RH, Contabilidad, Sistemas, Mercadotecnia, Monitoreo o Capital Humano."
+      });
+      break;
+
+    case 5: {
+      applicationFlow.data.grupoSeleccionado = text;
+
+      const params = new URLSearchParams({
+        tipoVacante: applicationFlow.data.tipoVacante || "",
+        pais: applicationFlow.data.pais || "",
+        estado: applicationFlow.data.estado || "",
+        ciudad: applicationFlow.data.ciudad || "",
+        grupo: applicationFlow.data.grupoSeleccionado || ""
+      });
+
+      const res = await fetch(`${API_URL}/api/vacantes?${params.toString()}`);
+      const vacs = await res.json();
+
+      if (!vacs.length) {
+        chatHistory.push({
+          role: "assistant",
+          content: "No encontré vacantes con esa combinación. Intenta con otra ciudad, grupo o tipo de vacante."
+        });
+        break;
+      }
+
+      applicationFlow.data.vacantesDisponibles = vacs;
+      applicationFlow.step = 6;
+
+      chatHistory.push({
+        role: "assistant",
+        content:
+          "Estas son las vacantes disponibles:\n" +
+          vacs.map((v, i) => `${i + 1}. ${v.titulo} - ${v.grupo} - ${v.ciudad}`).join("\n") +
+          "\n\nEscríbeme el número de la vacante que te interesa."
+      });
+      break;
+    }
+
+    case 6: {
+      const index = Number(text) - 1;
+      const vacante = applicationFlow.data.vacantesDisponibles?.[index];
+
+      if (!vacante) {
+        chatHistory.push({
+          role: "assistant",
+          content: "No reconocí esa opción. Escríbeme el número de la vacante que te interesa."
+        });
+        break;
+      }
+
+      applicationFlow.data.vacanteId = vacante.id;
+      applicationFlow.data.vacanteTitulo = vacante.titulo;
+      applicationFlow.data.puestoInteres = vacante.titulo;
+
+      applicationFlow.step = 7;
+      chatHistory.push({
+        role: "assistant",
+        content: "¿Cuál es tu nombre completo?"
+      });
+      break;
+    }
+
+    case 7:
+      applicationFlow.data.nombre = text;
+      applicationFlow.step = 8;
+      chatHistory.push({
+        role: "assistant",
+        content: "Compárteme tu correo electrónico."
+      });
+      break;
+
+    case 8:
+      applicationFlow.data.correo = text;
+      applicationFlow.step = 9;
+      chatHistory.push({
+        role: "assistant",
+        content: "Ahora tu teléfono, por favor."
+      });
+      break;
+
+    case 9:
+      applicationFlow.data.telefono = text;
+      applicationFlow.step = 10;
+      chatHistory.push({
+        role: "assistant",
+        content: "¿Qué edad tienes?"
+      });
+      break;
+
+    case 10:
+      applicationFlow.data.edad = text;
+      applicationFlow.step = 11;
+      chatHistory.push({
+        role: "assistant",
+        content: "¿Cuál es tu disponibilidad? Ejemplo: tiempo completo, medio tiempo o fines de semana."
+      });
+      break;
+
+    case 11:
+      applicationFlow.data.disponibilidad = text;
+      applicationFlow.step = 12;
+      chatHistory.push({
+        role: "assistant",
+        content: "¿Cuál es tu escolaridad?"
+      });
+      break;
+
+    case 12:
+      applicationFlow.data.escolaridad = text;
+      applicationFlow.step = 13;
+      chatHistory.push({
+        role: "assistant",
+        content: "Cuéntame brevemente tu experiencia laboral."
+      });
+      break;
+
+    case 13:
+      applicationFlow.data.experiencia = text;
+      applicationFlow.step = 14;
+      chatHistory.push({
+        role: "assistant",
+        content: "Ahora dime tus habilidades principales."
+      });
+      break;
+
+    case 14:
+      applicationFlow.data.habilidades = text;
+      applicationFlow.step = 15;
+      chatHistory.push({
+        role: "assistant",
+        content: "Muy bien. Ahora usa el botón 'Adjuntar CV PDF' para subir tu CV."
+      });
+      break;
+
+    default:
+      applicationFlow.active = false;
+      break;
+  }
+
+  renderMessages();
+}
+
+async function submitApplicationFromChat() {
+  if (!applicationFlow.cvFile) {
+    chatHistory.push({
+      role: "assistant",
+      content: "⚠️ Debes adjuntar tu CV en PDF antes de enviar la postulación."
+    });
+    renderMessages();
+    return;
+  }
+
+  const formData = new FormData();
+  Object.entries(applicationFlow.data).forEach(([key, value]) => {
+    if (value && key !== "vacantesDisponibles") formData.append(key, value);
+  });
+
+  formData.append("vacanteSeleccionada", applicationFlow.data.vacanteId);
+  formData.append("cvFile", applicationFlow.cvFile);
+
+  if (applicationFlow.ineFile) formData.append("ineFile", applicationFlow.ineFile);
+  if (applicationFlow.curpFile) formData.append("curpFile", applicationFlow.curpFile);
+  if (applicationFlow.domicilioFile) formData.append("domicilioFile", applicationFlow.domicilioFile);
+
+  try {
+    const response = await fetch(`${API_URL}/api/postulacion`, {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "No fue posible enviar la postulación.");
+    }
+
+    candidateProfile = {
+      ...applicationFlow.data,
+      postulacionId: data.postulacion.id,
+      cvNombre: data.postulacion.cvNombre,
+      resumenIA: data.postulacion.resumenIA,
+      vacanteTitulo: data.postulacion.vacanteTitulo
+    };
+
+    applicationFlow.active = false;
+
+    chatHistory.push({
+      role: "assistant",
+      content:
+        `✅ Tu postulación fue enviada correctamente para ${data.postulacion.vacanteTitulo}. ` +
+        `Tu folio es ${data.postulacion.id}. ` +
+        `Resumen de tu CV: ${data.postulacion.resumenIA}`
+    });
+
+    renderMessages();
+  } catch (error) {
+    chatHistory.push({
+      role: "assistant",
+      content: `⚠️ ${error.message}`
+    });
+    renderMessages();
+  }
+}
+
 if (toggle) toggle.addEventListener("click", openChat);
 if (closeBtn) closeBtn.addEventListener("click", closeChat);
 
-if (paisSelect) {
-  paisSelect.addEventListener("change", async () => {
-    llenarEstados(paisSelect, estadoSelect, ciudadSelect);
-    await cargarVacantesParaFormulario();
-  });
+if (startApplicationBtn) {
+  startApplicationBtn.addEventListener("click", startApplicationFlow);
 }
 
-if (estadoSelect) {
-  estadoSelect.addEventListener("change", async () => {
-    llenarCiudades(paisSelect, estadoSelect, ciudadSelect);
-    await cargarVacantesParaFormulario();
-  });
-}
-
-if (ciudadSelect) {
-  ciudadSelect.addEventListener("change", cargarVacantesParaFormulario);
-}
-
-if (tipoVacanteSelect) {
-  tipoVacanteSelect.addEventListener("change", async () => {
-    await cargarGruposPorTipo(tipoVacanteSelect.value);
-    await cargarVacantesParaFormulario();
-  });
-}
-
-if (grupoSeleccionadoSelect) {
-  grupoSeleccionadoSelect.addEventListener("change", cargarVacantesParaFormulario);
+if (startApplicationBtnSecondary) {
+  startApplicationBtnSecondary.addEventListener("click", startApplicationFlow);
 }
 
 if (filtroPais) {
@@ -362,90 +567,75 @@ if (filtroCiudad) filtroCiudad.addEventListener("change", cargarVacantesVista);
 if (filtroTipo) filtroTipo.addEventListener("change", cargarVacantesVista);
 if (consultarStatusBtn) consultarStatusBtn.addEventListener("click", consultarEstatus);
 
-if (candidateForm) {
-  candidateForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const profile = getCandidateProfileFromForm();
-    const cvFile = cvFileInput?.files?.[0];
-
-    const obligatorios = [
-      ["nombre", profile.nombre],
-      ["correo", profile.correo],
-      ["telefono", profile.telefono],
-      ["pais", profile.pais],
-      ["estado", profile.estado],
-      ["ciudad", profile.ciudad],
-      ["tipoVacante", profile.tipoVacante],
-      ["grupoSeleccionado", profile.grupoSeleccionado],
-      ["vacanteSeleccionada", profile.vacanteId]
-    ];
-
-    const faltantes = obligatorios.filter(([, valor]) => !valor).map(([key]) => key);
-    if (faltantes.length) {
-      profileStatus.classList.remove("hidden");
-      profileStatus.textContent = "⚠️ Completa todos los campos obligatorios antes de enviar.";
-      return;
-    }
-
-    if (!cvFile) {
-      profileStatus.classList.remove("hidden");
-      profileStatus.textContent = "⚠️ Debes adjuntar tu CV en formato PDF.";
-      return;
-    }
-
-    const isPdf = cvFile.type === "application/pdf" || cvFile.name.toLowerCase().endsWith(".pdf");
-    if (!isPdf) {
-      profileStatus.classList.remove("hidden");
-      profileStatus.textContent = "⚠️ Solo se permite el CV en PDF.";
-      return;
-    }
-
-    const formData = new FormData();
-    Object.entries(profile).forEach(([key, value]) => {
-      if (value) formData.append(key, value);
-    });
-
-    formData.append("cvFile", cvFile);
-    if (ineFileInput?.files?.[0]) formData.append("ineFile", ineFileInput.files[0]);
-    if (curpFileInput?.files?.[0]) formData.append("curpFile", curpFileInput.files[0]);
-    if (domicilioFileInput?.files?.[0]) formData.append("domicilioFile", domicilioFileInput.files[0]);
-
-    profileStatus.classList.remove("hidden");
-    profileStatus.textContent = "⏳ Enviando tu postulación y analizando tu CV...";
-
-    try {
-      const response = await fetch(`${API_URL}/api/postulacion`, {
-        method: "POST",
-        body: formData
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "No fue posible enviar la postulación.");
-      }
-
-      candidateProfile = {
-        ...profile,
-        postulacionId: data.postulacion.id,
-        cvNombre: data.postulacion.cvNombre,
-        resumenIA: data.postulacion.resumenIA,
-        vacanteTitulo: data.postulacion.vacanteTitulo
-      };
-
-      profileStatus.classList.remove("hidden");
-      profileStatus.textContent =
-        `✅ Postulación enviada correctamente. Tu folio es ${candidateProfile.postulacionId}. Guarda este número para consultar tu estatus.`;
-
+if (attachCvBtn && chatCvFile) {
+  attachCvBtn.addEventListener("click", () => {
+    if (!applicationFlow.active || applicationFlow.step < 15) {
+      openChat();
       chatHistory.push({
         role: "assistant",
-        content: `✅ Recibí tu postulación para ${candidateProfile.vacanteTitulo}. Folio: ${candidateProfile.postulacionId}. Resumen de tu CV: ${candidateProfile.resumenIA}`
+        content: "Primero completa los pasos iniciales de tu postulación y luego adjunta tu CV."
       });
       renderMessages();
-    } catch (error) {
-      profileStatus.classList.remove("hidden");
-      profileStatus.textContent = `⚠️ ${error.message}`;
+      return;
     }
+
+    chatCvFile.click();
+  });
+
+  chatCvFile.addEventListener("change", async () => {
+    const file = chatCvFile.files?.[0];
+    if (!file) return;
+
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      chatHistory.push({
+        role: "assistant",
+        content: "⚠️ Solo se permite subir el CV en formato PDF."
+      });
+      renderMessages();
+      return;
+    }
+
+    applicationFlow.cvFile = file;
+
+    chatHistory.push({
+      role: "assistant",
+      content: "✅ CV cargado correctamente. Si deseas, ahora puedes adjuntar INE, CURP o comprobante de domicilio. Si no, escribe 'continuar' para enviar tu postulación."
+    });
+    renderMessages();
+  });
+}
+
+if (attachIneBtn && chatIneFile) {
+  attachIneBtn.addEventListener("click", () => chatIneFile.click());
+  chatIneFile.addEventListener("change", () => {
+    const file = chatIneFile.files?.[0];
+    if (!file) return;
+    applicationFlow.ineFile = file;
+    chatHistory.push({ role: "assistant", content: "✅ INE cargado correctamente." });
+    renderMessages();
+  });
+}
+
+if (attachCurpBtn && chatCurpFile) {
+  attachCurpBtn.addEventListener("click", () => chatCurpFile.click());
+  chatCurpFile.addEventListener("change", () => {
+    const file = chatCurpFile.files?.[0];
+    if (!file) return;
+    applicationFlow.curpFile = file;
+    chatHistory.push({ role: "assistant", content: "✅ CURP cargado correctamente." });
+    renderMessages();
+  });
+}
+
+if (attachDomicilioBtn && chatDomicilioFile) {
+  attachDomicilioBtn.addEventListener("click", () => chatDomicilioFile.click());
+  chatDomicilioFile.addEventListener("change", () => {
+    const file = chatDomicilioFile.files?.[0];
+    if (!file) return;
+    applicationFlow.domicilioFile = file;
+    chatHistory.push({ role: "assistant", content: "✅ Comprobante de domicilio cargado correctamente." });
+    renderMessages();
   });
 }
 
@@ -460,12 +650,18 @@ if (form) {
     input.value = "";
     input.focus();
 
-    candidateProfile = {
-      ...getCandidateProfileFromForm(),
-      cvNombre: candidateProfile.cvNombre,
-      postulacionId: candidateProfile.postulacionId,
-      resumenIA: candidateProfile.resumenIA
-    };
+    if (applicationFlow.active) {
+      chatHistory.push({ role: "user", content: text });
+      renderMessages();
+
+      if (applicationFlow.step >= 15 && text.toLowerCase() === "continuar") {
+        await submitApplicationFromChat();
+        return;
+      }
+
+      await handleApplicationFlow(text);
+      return;
+    }
 
     await sendMessageToBot(text);
   });
@@ -474,7 +670,6 @@ if (form) {
 async function init() {
   renderMessages();
   await cargarUbicaciones();
-
   llenarEstados(filtroPais, filtroEstado, filtroCiudad);
   await cargarVacantesVista();
 }

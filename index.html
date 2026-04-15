@@ -26,147 +26,32 @@
       <span class="badge">IA para Reclutamiento</span>
       <h1>Encuentra tu próxima oportunidad</h1>
       <p>
-        Explora vacantes operativas y administrativas, adjunta tu CV y recibe orientación inteligente según tu perfil.
+        Explora vacantes operativas y administrativas, y realiza tu postulación guiada directamente desde el asistente.
       </p>
       <div class="hero__actions">
-        <a href="#registro" class="btn btn--primary">Comenzar</a>
+        <button id="startApplicationBtn" class="btn btn--primary" type="button">
+          Iniciar postulación por chat
+        </button>
         <a href="#vacantes" class="btn btn--ghost">Ver vacantes</a>
       </div>
     </div>
   </header>
 
   <main class="container">
-    <section id="registro" class="card">
+    <section class="card">
       <div class="section-head">
-        <h2>Postulación</h2>
-        <p>Completa tu perfil y selecciona una vacante específica.</p>
+        <h2>Postulación guiada</h2>
+        <p>
+          Nuestro asistente te pedirá paso por paso tu información, vacante de interés,
+          ubicación, experiencia y CV.
+        </p>
       </div>
 
-      <form id="candidate-form" class="form-grid" enctype="multipart/form-data">
-        <div class="field">
-          <label for="nombre">Nombre completo</label>
-          <input id="nombre" name="nombre" type="text" placeholder="Escribe tu nombre completo" />
-        </div>
-
-        <div class="field">
-          <label for="correo">Correo electrónico</label>
-          <input id="correo" name="correo" type="email" placeholder="ejemplo@correo.com" />
-        </div>
-
-        <div class="field">
-          <label for="telefono">Teléfono</label>
-          <input id="telefono" name="telefono" type="tel" placeholder="6561234567" />
-        </div>
-
-        <div class="field">
-          <label for="edad">Edad</label>
-          <input id="edad" name="edad" type="number" min="16" max="99" placeholder="Ej. 24" />
-        </div>
-
-        <div class="field">
-          <label for="pais">País</label>
-          <select id="pais" name="pais">
-            <option value="">Selecciona un país</option>
-            <option value="México">México</option>
-            <option value="Estados Unidos">Estados Unidos</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="estado">Estado</label>
-          <select id="estado" name="estado">
-            <option value="">Selecciona un estado</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="ciudad">Ciudad</label>
-          <select id="ciudad" name="ciudad">
-            <option value="">Selecciona una ciudad</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="disponibilidad">Disponibilidad</label>
-          <select id="disponibilidad" name="disponibilidad">
-            <option value="">Selecciona disponibilidad</option>
-            <option value="Tiempo completo">Tiempo completo</option>
-            <option value="Medio tiempo">Medio tiempo</option>
-            <option value="Fines de semana">Fines de semana</option>
-            <option value="Horario flexible">Horario flexible</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="tipoVacante">Tipo de vacante</label>
-          <select id="tipoVacante" name="tipoVacante">
-            <option value="">Selecciona un tipo</option>
-            <option value="operativa">Operativa / Restaurante</option>
-            <option value="administrativa">Administrativa / Corporativo</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="grupoSeleccionado">Marca / Departamento</label>
-          <select id="grupoSeleccionado" name="grupoSeleccionado">
-            <option value="">Selecciona una opción</option>
-          </select>
-        </div>
-
-        <div class="field field--full">
-          <label for="vacanteSeleccionada">Vacante específica</label>
-          <select id="vacanteSeleccionada" name="vacanteSeleccionada">
-            <option value="">Selecciona una vacante</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="puestoInteres">Puesto de interés</label>
-          <input id="puestoInteres" name="puestoInteres" type="text" placeholder="Ej. Hostess, Soporte, Contabilidad" />
-        </div>
-
-        <div class="field">
-          <label for="escolaridad">Escolaridad</label>
-          <input id="escolaridad" name="escolaridad" type="text" placeholder="Ej. Preparatoria / Licenciatura / Ingeniería" />
-        </div>
-
-        <div class="field field--full">
-          <label for="experiencia">Experiencia laboral</label>
-          <textarea id="experiencia" name="experiencia" rows="4" placeholder="Describe tu experiencia laboral"></textarea>
-        </div>
-
-        <div class="field field--full">
-          <label for="habilidades">Habilidades</label>
-          <textarea id="habilidades" name="habilidades" rows="3" placeholder="Ej. Atención al cliente, soporte, caja, cocina, Excel"></textarea>
-        </div>
-
-        <div class="field field--full">
-          <label for="cvFile">Adjuntar CV en PDF</label>
-          <input id="cvFile" name="cvFile" type="file" accept=".pdf,application/pdf" />
-          <small class="field-help">Sube únicamente tu CV en PDF, actualizado y legible.</small>
-        </div>
-
-        <div class="field">
-          <label for="ineFile">INE (opcional)</label>
-          <input id="ineFile" name="ineFile" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" />
-        </div>
-
-        <div class="field">
-          <label for="curpFile">CURP (opcional)</label>
-          <input id="curpFile" name="curpFile" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" />
-        </div>
-
-        <div class="field field--full">
-          <label for="domicilioFile">Comprobante de domicilio (opcional)</label>
-          <input id="domicilioFile" name="domicilioFile" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" />
-        </div>
-
-        <div class="form-actions field--full">
-          <button type="submit" class="btn btn--primary">Enviar postulación</button>
-        </div>
-      </form>
-
-      <div id="profile-status" class="status hidden"></div>
+      <div class="hero__actions">
+        <button id="startApplicationBtnSecondary" class="btn btn--primary" type="button">
+          Comenzar ahora
+        </button>
+      </div>
     </section>
 
     <section id="vacantes" class="card">
@@ -224,7 +109,9 @@
           <input id="folioConsulta" type="text" placeholder="Ej. 1717600000000" />
         </div>
         <div class="form-actions field--full">
-          <button id="consultarStatusBtn" type="button" class="btn btn--secondary">Consultar estatus</button>
+          <button id="consultarStatusBtn" type="button" class="btn btn--secondary">
+            Consultar estatus
+          </button>
         </div>
       </div>
 
@@ -245,8 +132,30 @@
 
     <div id="chatbot-messages" class="chatbot-messages"></div>
 
+    <div class="chatbot-upload-bar">
+      <button id="attachCvBtn" type="button" class="btn btn--secondary">
+        Adjuntar CV PDF
+      </button>
+      <input id="chatCvFile" type="file" accept=".pdf,application/pdf" hidden />
+
+      <button id="attachIneBtn" type="button" class="btn btn--secondary">
+        Adjuntar INE
+      </button>
+      <input id="chatIneFile" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" hidden />
+
+      <button id="attachCurpBtn" type="button" class="btn btn--secondary">
+        Adjuntar CURP
+      </button>
+      <input id="chatCurpFile" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" hidden />
+
+      <button id="attachDomicilioBtn" type="button" class="btn btn--secondary">
+        Adjuntar domicilio
+      </button>
+      <input id="chatDomicilioFile" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" hidden />
+    </div>
+
     <form id="chatbot-form" class="chatbot-form">
-      <input id="chatbot-input" type="text" placeholder="Escribe tu duda..." autocomplete="off" />
+      <input id="chatbot-input" type="text" placeholder="Escribe tu respuesta..." autocomplete="off" />
       <button id="chatbot-send" type="submit">Enviar</button>
     </form>
   </aside>

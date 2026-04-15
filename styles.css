@@ -716,3 +716,15 @@ input[type="file"]::file-selector-button {
     margin-bottom: 10px;
   }
 }
+
+.chatbot-upload-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px 0;
+}
+
+.chatbot-upload-bar .btn {
+  padding: 10px 12px;
+  font-size: 12px;
+}

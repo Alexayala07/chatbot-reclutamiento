@@ -111,18 +111,6 @@ const vacantes = [
   {
     id: "vac-003",
     tipoVacante: "operativa",
-    grupo: "Little Caesars",
-    titulo: "Auxiliar de Cocina",
-    area: "Cocina",
-    pais: "México",
-    estado: "Baja California",
-    ciudad: "Mexicali",
-    sucursal: "Sendero",
-    requisitos: ["Preparación de alimentos", "Limpieza", "Trabajo bajo presión"]
-  },
-  {
-    id: "vac-004",
-    tipoVacante: "operativa",
     grupo: "Applebee's",
     titulo: "Hostess",
     area: "Recepción",
@@ -133,31 +121,31 @@ const vacantes = [
     requisitos: ["Excelente trato al cliente", "Presentación", "Comunicación"]
   },
   {
-    id: "vac-005",
+    id: "vac-004",
     tipoVacante: "operativa",
-    grupo: "Great American Steakhouse",
+    grupo: "Great American",
     titulo: "Parrillero",
     area: "Cocina",
-    pais: "Estados Unidos",
-    estado: "Texas",
-    ciudad: "El Paso",
-    sucursal: "Main Branch",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
+    sucursal: "Central",
     requisitos: ["Manejo de parrilla", "Cocción de carnes", "Trabajo bajo presión"]
   },
   {
-    id: "vac-006",
+    id: "vac-005",
     tipoVacante: "operativa",
     grupo: "Ardeo",
     titulo: "Chef de Línea",
     area: "Cocina",
     pais: "México",
-    estado: "Jalisco",
-    ciudad: "Guadalajara",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
     sucursal: "Ardeo Central",
     requisitos: ["Cocina gourmet", "Organización", "Trabajo en equipo"]
   },
   {
-    id: "vac-007",
+    id: "vac-006",
     tipoVacante: "operativa",
     grupo: "Yoko",
     titulo: "Sushero",
@@ -168,17 +156,105 @@ const vacantes = [
     sucursal: "Yoko Norte",
     requisitos: ["Preparación de sushi", "Limpieza", "Orden"]
   },
+
+  {
+    id: "vac-007",
+    tipoVacante: "operativa",
+    grupo: "Wendy's",
+    titulo: "Cajero",
+    area: "Operaciones",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Chihuahua",
+    sucursal: "Sucursal Chihuahua",
+    requisitos: ["Atención al cliente", "Caja", "Disponibilidad"]
+  },
+  {
+    id: "vac-008",
+    tipoVacante: "operativa",
+    grupo: "Little Caesars",
+    titulo: "Auxiliar de Cocina",
+    area: "Cocina",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Chihuahua",
+    sucursal: "Sucursal Chihuahua",
+    requisitos: ["Preparación de alimentos", "Limpieza", "Trabajo bajo presión"]
+  },
+  {
+    id: "vac-009",
+    tipoVacante: "operativa",
+    grupo: "Great American",
+    titulo: "Mesero",
+    area: "Piso",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Chihuahua",
+    sucursal: "Sucursal Chihuahua",
+    requisitos: ["Servicio al cliente", "Presentación", "Trabajo en equipo"]
+  },
+
+  {
+    id: "vac-010",
+    tipoVacante: "operativa",
+    grupo: "Little Caesars",
+    titulo: "Cajero",
+    area: "Mostrador",
+    pais: "México",
+    estado: "Jalisco",
+    ciudad: "Guadalajara",
+    sucursal: "Sucursal Guadalajara",
+    requisitos: ["Atención al cliente", "Caja", "Disponibilidad"]
+  },
+  {
+    id: "vac-011",
+    tipoVacante: "operativa",
+    grupo: "Applebee's",
+    titulo: "Mesero",
+    area: "Piso",
+    pais: "México",
+    estado: "Jalisco",
+    ciudad: "Guadalajara",
+    sucursal: "Sucursal Guadalajara",
+    requisitos: ["Servicio al cliente", "Trabajo en equipo", "Disponibilidad"]
+  },
+  {
+    id: "vac-012",
+    tipoVacante: "operativa",
+    grupo: "Wendy's",
+    titulo: "Próximamente",
+    area: "Operaciones",
+    pais: "México",
+    estado: "Jalisco",
+    ciudad: "Guadalajara",
+    sucursal: "Próxima apertura",
+    requisitos: ["Vacante próxima a apertura"]
+  },
+
+  {
+    id: "vac-013",
+    tipoVacante: "operativa",
+    grupo: "Little Caesars",
+    titulo: "Auxiliar de Cocina",
+    area: "Cocina",
+    pais: "México",
+    estado: "Baja California",
+    ciudad: "Mexicali",
+    sucursal: "Sucursal Mexicali",
+    requisitos: ["Preparación de alimentos", "Limpieza", "Trabajo bajo presión"]
+  },
+
   {
     id: "vac-101",
     tipoVacante: "administrativa",
-    grupo: "Sistemas",
-    titulo: "Auxiliar de Soporte Técnico",
-    area: "Sistemas",
+    grupo: "RH",
+    titulo: "Auxiliar de Reclutamiento",
+    area: "RH",
     pais: "México",
     estado: "Chihuahua",
     ciudad: "Ciudad Juárez",
     sucursal: "Corporativo",
-    requisitos: ["Soporte técnico", "Redes básicas", "Atención al usuario"]
+    requisitos: ["Entrevistas", "Seguimiento", "Organización"]
   },
   {
     id: "vac-102",
@@ -207,17 +283,29 @@ const vacantes = [
   {
     id: "vac-104",
     tipoVacante: "administrativa",
-    grupo: "Capital Humano",
-    titulo: "Analista de Reclutamiento",
-    area: "Capital Humano",
+    grupo: "Sistemas",
+    titulo: "Auxiliar de Soporte Técnico",
+    area: "Sistemas",
     pais: "México",
     estado: "Chihuahua",
     ciudad: "Ciudad Juárez",
     sucursal: "Corporativo",
-    requisitos: ["Entrevistas", "Reclutamiento", "Organización"]
+    requisitos: ["Soporte técnico", "Redes básicas", "Atención al usuario"]
   },
   {
     id: "vac-105",
+    tipoVacante: "administrativa",
+    grupo: "Monitoreo",
+    titulo: "Analista de Monitoreo",
+    area: "Monitoreo",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
+    sucursal: "Corporativo",
+    requisitos: ["Monitoreo", "Atención al detalle", "Reportes"]
+  },
+  {
+    id: "vac-106",
     tipoVacante: "administrativa",
     grupo: "Proyectos y Construcción",
     titulo: "Coordinador de Proyectos",
@@ -226,7 +314,19 @@ const vacantes = [
     estado: "Texas",
     ciudad: "El Paso",
     sucursal: "Corporativo",
-    requisitos: ["Planeación", "Seguimiento", "Obra y construcción"]
+    requisitos: ["Planeación", "Seguimiento", "Construcción"]
+  },
+  {
+    id: "vac-107",
+    tipoVacante: "administrativa",
+    grupo: "Capital Humano",
+    titulo: "Generalista de Capital Humano",
+    area: "Capital Humano",
+    pais: "México",
+    estado: "Chihuahua",
+    ciudad: "Ciudad Juárez",
+    sucursal: "Corporativo",
+    requisitos: ["RH", "Administración de personal", "Comunicación"]
   }
 ];
 
