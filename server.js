@@ -6,6 +6,7 @@ import fs from "fs";
 import multer from "multer";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
 
@@ -32,16 +33,27 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed =
-    file.mimetype === "application/pdf" ||
+  const name = file.originalname.toLowerCase();
+  const isPdf = file.mimetype === "application/pdf" || name.endsWith(".pdf");
+  const isImage =
     file.mimetype.startsWith("image/") ||
-    file.originalname.toLowerCase().endsWith(".pdf") ||
-    file.originalname.toLowerCase().endsWith(".jpg") ||
-    file.originalname.toLowerCase().endsWith(".jpeg") ||
-    file.originalname.toLowerCase().endsWith(".png");
+    name.endsWith(".jpg") ||
+    name.endsWith(".jpeg") ||
+    name.endsWith(".png");
 
-  if (!allowed) {
-    return cb(new Error("Solo se permiten PDF o imágenes."));
+  const isCvField = file.fieldname === "cvFile";
+  const isOptionalDocField = ["ineFile", "curpFile", "domicilioFile"].includes(file.fieldname);
+
+  if (isCvField && !isPdf) {
+    return cb(new Error("El CV debe ser un archivo PDF."));
+  }
+
+  if (isOptionalDocField && !(isPdf || isImage)) {
+    return cb(new Error("Los documentos opcionales deben ser PDF o imagen."));
+  }
+
+  if (!isCvField && !isOptionalDocField) {
+    return cb(new Error("Tipo de archivo no permitido."));
   }
 
   cb(null, true);
@@ -55,9 +67,13 @@ const upload = multer({
 
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.sendStatus(200);
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
   next();
 });
 
@@ -156,7 +172,6 @@ const vacantes = [
     sucursal: "Yoko Norte",
     requisitos: ["Preparación de sushi", "Limpieza", "Orden"]
   },
-
   {
     id: "vac-007",
     tipoVacante: "operativa",
@@ -193,7 +208,6 @@ const vacantes = [
     sucursal: "Sucursal Chihuahua",
     requisitos: ["Servicio al cliente", "Presentación", "Trabajo en equipo"]
   },
-
   {
     id: "vac-010",
     tipoVacante: "operativa",
@@ -230,7 +244,6 @@ const vacantes = [
     sucursal: "Próxima apertura",
     requisitos: ["Vacante próxima a apertura"]
   },
-
   {
     id: "vac-013",
     tipoVacante: "operativa",
@@ -243,7 +256,6 @@ const vacantes = [
     sucursal: "Sucursal Mexicali",
     requisitos: ["Preparación de alimentos", "Limpieza", "Trabajo bajo presión"]
   },
-
   {
     id: "vac-101",
     tipoVacante: "administrativa",
@@ -336,7 +348,7 @@ function obtenerGruposPorTipo(tipoVacante) {
 }
 
 function sugerirVacantesBasicas(texto = "", tipoVacante = "") {
-  const lower = texto.toLowerCase();
+  const lower = String(texto).toLowerCase();
 
   return vacantes
     .filter(v => !tipoVacante || v.tipoVacante === tipoVacante)
@@ -355,6 +367,13 @@ function sugerirVacantesBasicas(texto = "", tipoVacante = "") {
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
+}
+
+function limpiarJsonRespuesta(texto = "") {
+  return texto
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
 }
 
 app.get("/health", (req, res) => {
@@ -477,7 +496,7 @@ ${cvTexto.slice(0, 12000)}
           });
 
           const content = completion.choices?.[0]?.message?.content || "{}";
-          const parsed = JSON.parse(content);
+          const parsed = JSON.parse(limpiarJsonRespuesta(content));
 
           resumenIA = parsed.resumen || resumenIA;
         } catch {
