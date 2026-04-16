@@ -81,6 +81,139 @@ const chatHistory = [
   }
 ];
 
+/* =========================
+   NORMALIZACIÓN Y ALIAS
+========================= */
+function normalizeText(text = "") {
+  return String(text)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[.'’]/g, "")
+    .replace(/\b(cd|cd\.|ciudad)\b/g, "ciudad")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveTipoVacante(value = "") {
+  const t = normalizeText(value);
+
+  if (
+    t.includes("admin") ||
+    t.includes("corporativo") ||
+    t.includes("oficina") ||
+    t.includes("recursos humanos") ||
+    t === "rh"
+  ) {
+    return "administrativa";
+  }
+
+  if (
+    t.includes("operativa") ||
+    t.includes("restaurante") ||
+    t.includes("restaurant") ||
+    t.includes("tienda") ||
+    t.includes("sucursal")
+  ) {
+    return "operativa";
+  }
+
+  return value;
+}
+
+function resolvePais(value = "") {
+  const t = normalizeText(value);
+
+  const aliases = {
+    "méxico": ["mexico", "mx", "méxico"],
+    "Estados Unidos": ["estados unidos", "usa", "us", "eeuu", "eua", "united states"]
+  };
+
+  for (const [official, list] of Object.entries(aliases)) {
+    if (list.some((alias) => t === normalizeText(alias) || t.includes(normalizeText(alias)))) {
+      return official;
+    }
+  }
+
+  return value;
+}
+
+function resolveEstado(value = "") {
+  const t = normalizeText(value);
+
+  const aliases = {
+    "Chihuahua": ["chihuahua", "chih"],
+    "Baja California": ["baja california", "baja", "bc", "mexicali"],
+    "Jalisco": ["jalisco", "gdl", "guadalajara"],
+    "Texas": ["texas", "tx", "el paso"]
+  };
+
+  for (const [official, list] of Object.entries(aliases)) {
+    if (list.some((alias) => t === normalizeText(alias) || t.includes(normalizeText(alias)))) {
+      return official;
+    }
+  }
+
+  return value;
+}
+
+function resolveCiudad(value = "") {
+  const t = normalizeText(value);
+
+  const aliases = {
+    "Ciudad Juárez": ["juarez", "ciudad juarez", "cd juarez", "cd. juarez", "jrz"],
+    "Chihuahua": ["chihuahua", "chih", "cd chihuahua", "ciudad chihuahua"],
+    "Guadalajara": ["guadalajara", "gdl"],
+    "Mexicali": ["mexicali"],
+    "El Paso": ["el paso", "paso", "elpaso"]
+  };
+
+  for (const [official, list] of Object.entries(aliases)) {
+    if (list.some((alias) => t === normalizeText(alias) || t.includes(normalizeText(alias)))) {
+      return official;
+    }
+  }
+
+  return value;
+}
+
+function resolveGrupo(value = "", tipoVacante = "") {
+  const t = normalizeText(value);
+  const tipo = normalizeText(tipoVacante);
+
+  const aliasesOperativas = {
+    "Wendy's": ["wendys", "wendys restaurant", "wendy", "wendy's"],
+    "Applebee's": ["applebees", "applebee", "applebee's"],
+    "Great American": ["great american", "great american steakhouse", "great"],
+    "Ardeo": ["ardeo"],
+    "Yoko": ["yoko"],
+    "Little Caesars": ["little caesars", "little", "caesars", "little caesar"]
+  };
+
+  const aliasesAdministrativas = {
+    "RH": ["rh", "recursos humanos", "reclutamiento"],
+    "Contabilidad": ["contabilidad", "contador", "contable"],
+    "Mercadotecnia": ["mercadotecnia", "marketing", "mkt"],
+    "Sistemas": ["sistemas", "soporte", "soporte tecnico", "it", "tecnologia"],
+    "Monitoreo": ["monitoreo", "monitorista"],
+    "Proyectos y Construcción": ["proyectos", "construccion", "proyectos y construccion"],
+    "Capital Humano": ["capital humano", "capital", "talento humano"]
+  };
+
+  const source = tipo === "administrativa" ? aliasesAdministrativas : aliasesOperativas;
+
+  for (const [official, list] of Object.entries(source)) {
+    if (list.some((alias) => t === normalizeText(alias) || t.includes(normalizeText(alias)))) {
+      return official;
+    }
+  }
+
+  return value;
+}
+
+/* =========================
+   RENDER
+========================= */
 function renderMessages() {
   if (!messagesDiv) return;
 
@@ -196,6 +329,9 @@ function renderMessages() {
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
+/* =========================
+   CHAT BÁSICO
+========================= */
 function openChat() {
   if (!box) return;
   box.classList.remove("hidden");
@@ -208,7 +344,7 @@ function closeChat() {
 }
 
 async function sendMessageToBot(userText) {
-  const saludo = userText.trim().toLowerCase();
+  const saludo = normalizeText(userText);
 
   if (["hola", "buenas", "buenos dias", "buenas tardes", "buenas noches"].includes(saludo)) {
     chatHistory.push({ role: "user", content: userText });
@@ -345,6 +481,9 @@ async function mostrarVacantesFiltradas(tipo) {
   }
 }
 
+/* =========================
+   UBICACIONES
+========================= */
 async function cargarUbicaciones() {
   const res = await fetch(`${API_URL}/api/ubicaciones`);
   ubicaciones = await res.json();
@@ -381,6 +520,9 @@ function llenarCiudades(selectPais, selectEstado, targetCiudad) {
   });
 }
 
+/* =========================
+   VACANTES EN PÁGINA
+========================= */
 async function cargarVacantesVista() {
   if (!vacantesList) return;
 
@@ -422,7 +564,7 @@ async function cargarVacantesVista() {
   });
 
   document.querySelectorAll(".interes-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       const vacante = vacantesData.find((v) => v.id === btn.dataset.id);
       if (!vacante) return;
 
@@ -458,6 +600,9 @@ async function cargarVacantesVista() {
   });
 }
 
+/* =========================
+   ESTATUS
+========================= */
 async function consultarEstatus() {
   const folio = folioConsulta.value.trim();
   if (!folio) {
@@ -483,6 +628,9 @@ async function consultarEstatus() {
   }
 }
 
+/* =========================
+   FLUJO DE POSTULACIÓN
+========================= */
 function startApplicationFlow() {
   applicationFlow = {
     active: true,
@@ -510,7 +658,7 @@ async function handleApplicationFlow(userText) {
 
   switch (applicationFlow.step) {
     case 1:
-      applicationFlow.data.tipoVacante = text.toLowerCase().includes("admin") ? "administrativa" : "operativa";
+      applicationFlow.data.tipoVacante = resolveTipoVacante(text);
       applicationFlow.step = 2;
       chatHistory.push({
         role: "assistant",
@@ -520,39 +668,39 @@ async function handleApplicationFlow(userText) {
       break;
 
     case 2:
-      applicationFlow.data.pais = text;
+      applicationFlow.data.pais = resolvePais(text);
       applicationFlow.step = 3;
       chatHistory.push({
         role: "assistant",
         type: "text",
-        content: "¿En qué estado te interesa trabajar?"
+        content: "¿En qué estado te interesa trabajar? Ejemplo: Chihuahua, Jalisco, Baja California o Texas."
       });
       break;
 
     case 3:
-      applicationFlow.data.estado = text;
+      applicationFlow.data.estado = resolveEstado(text);
       applicationFlow.step = 4;
       chatHistory.push({
         role: "assistant",
         type: "text",
-        content: "¿En qué ciudad te interesa trabajar?"
+        content: "¿En qué ciudad te interesa trabajar? Ejemplo: Ciudad Juárez, Chihuahua, Guadalajara, Mexicali o El Paso."
       });
       break;
 
     case 4:
-      applicationFlow.data.ciudad = text;
+      applicationFlow.data.ciudad = resolveCiudad(text);
       applicationFlow.step = 5;
       chatHistory.push({
         role: "assistant",
         type: "text",
-        content: applicationFlow.data.tipoVacante === "operativa"
-          ? "¿Qué marca te interesa? Ejemplo: Wendy's, Applebee's, Great American, Ardeo, Yoko o Little Caesars."
-          : "¿Qué departamento te interesa? Ejemplo: RH, Contabilidad, Sistemas, Mercadotecnia, Monitoreo o Capital Humano."
+        content: applicationFlow.data.tipoVacante === "administrativa"
+          ? "¿Qué departamento te interesa? Ejemplo: RH, Contabilidad, Sistemas, Mercadotecnia, Monitoreo o Capital Humano."
+          : "¿Qué marca te interesa? Ejemplo: Wendy's, Applebee's, Great American, Ardeo, Yoko o Little Caesars."
       });
       break;
 
     case 5: {
-      applicationFlow.data.grupoSeleccionado = text;
+      applicationFlow.data.grupoSeleccionado = resolveGrupo(text, applicationFlow.data.tipoVacante);
 
       const params = new URLSearchParams({
         tipoVacante: applicationFlow.data.tipoVacante || "",
@@ -569,7 +717,7 @@ async function handleApplicationFlow(userText) {
         chatHistory.push({
           role: "assistant",
           type: "text",
-          content: "No encontré vacantes con esa combinación. Intenta con otra ciudad, grupo o tipo de vacante."
+          content: "No encontré vacantes con esa combinación. Puedes intentar con otra ciudad, otra marca o escribir el nombre de otra opción disponible."
         });
         break;
       }
@@ -579,11 +727,9 @@ async function handleApplicationFlow(userText) {
 
       chatHistory.push({
         role: "assistant",
-        type: "text",
-        content:
-          "Estas son las vacantes disponibles:\n" +
-          vacs.map((v, i) => `${i + 1}. ${v.titulo} - ${v.grupo} - ${v.ciudad}`).join("\n") +
-          "\n\nEscríbeme el número de la vacante que te interesa. Ejemplo: 1"
+        type: "vacancies",
+        content: "Encontré estas vacantes disponibles. Selecciona una:",
+        vacancies: vacs
       });
       break;
     }
@@ -596,7 +742,7 @@ async function handleApplicationFlow(userText) {
         chatHistory.push({
           role: "assistant",
           type: "text",
-          content: "No reconocí esa opción. Escríbeme el número de la vacante que te interesa. Ejemplo: 1"
+          content: "No reconocí esa opción. Puedes escribir el número de la vacante o tocar el botón 'Me interesa' en la tarjeta."
         });
         break;
       }
@@ -769,6 +915,9 @@ async function submitApplicationFromChat() {
   }
 }
 
+/* =========================
+   EVENTOS
+========================= */
 if (toggle) toggle.addEventListener("click", openChat);
 if (closeBtn) closeBtn.addEventListener("click", closeChat);
 
@@ -888,7 +1037,7 @@ if (form) {
       chatHistory.push({ role: "user", content: text });
       renderMessages();
 
-      if (applicationFlow.step >= 15 && text.toLowerCase() === "continuar") {
+      if (applicationFlow.step >= 15 && normalizeText(text) === "continuar") {
         await submitApplicationFromChat();
         return;
       }
@@ -901,6 +1050,9 @@ if (form) {
   });
 }
 
+/* =========================
+   INIT
+========================= */
 async function init() {
   renderMessages();
   await cargarUbicaciones();
@@ -908,4 +1060,4 @@ async function init() {
   await cargarVacantesVista();
 }
 
-init(); 
+init();

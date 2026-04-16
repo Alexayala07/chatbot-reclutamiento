@@ -343,7 +343,7 @@ const vacantes = [
 ];
 
 function obtenerGruposPorTipo(tipoVacante) {
-  const grupos = [...new Set(vacantes.filter(v => v.tipoVacante === tipoVacante).map(v => v.grupo))];
+  const grupos = [...new Set(vacantes.filter((v) => v.tipoVacante === tipoVacante).map((v) => v.grupo))];
   return grupos.sort();
 }
 
@@ -351,8 +351,8 @@ function sugerirVacantesBasicas(texto = "", tipoVacante = "") {
   const lower = String(texto).toLowerCase();
 
   return vacantes
-    .filter(v => !tipoVacante || v.tipoVacante === tipoVacante)
-    .map(v => {
+    .filter((v) => !tipoVacante || v.tipoVacante === tipoVacante)
+    .map((v) => {
       let score = 0;
       const full = `${v.titulo} ${v.area} ${v.requisitos.join(" ")}`.toLowerCase();
 
@@ -376,6 +376,101 @@ function limpiarJsonRespuesta(texto = "") {
     .trim();
 }
 
+function normalizarTexto(texto = "") {
+  return String(texto)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[.'’]/g, "")
+    .replace(/\b(cd|cd\.|ciudad)\b/g, "ciudad")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolverPais(valor = "") {
+  const t = normalizarTexto(valor);
+
+  const aliases = {
+    "México": ["mexico", "méxico", "mx"],
+    "Estados Unidos": ["estados unidos", "usa", "us", "eeuu", "eua", "united states"]
+  };
+
+  for (const [oficial, lista] of Object.entries(aliases)) {
+    if (lista.some((alias) => t === normalizarTexto(alias) || t.includes(normalizarTexto(alias)))) {
+      return oficial;
+    }
+  }
+
+  return valor;
+}
+
+function resolverEstado(valor = "") {
+  const t = normalizarTexto(valor);
+
+  const aliases = {
+    "Chihuahua": ["chihuahua", "chih"],
+    "Baja California": ["baja california", "baja", "bc"],
+    "Jalisco": ["jalisco", "gdl"],
+    "Texas": ["texas", "tx"]
+  };
+
+  for (const [oficial, lista] of Object.entries(aliases)) {
+    if (lista.some((alias) => t === normalizarTexto(alias) || t.includes(normalizarTexto(alias)))) {
+      return oficial;
+    }
+  }
+
+  return valor;
+}
+
+function resolverCiudad(valor = "") {
+  const t = normalizarTexto(valor);
+
+  const aliases = {
+    "Ciudad Juárez": ["juarez", "ciudad juarez", "cd juarez", "cd. juarez", "jrz"],
+    "Chihuahua": ["chihuahua", "ciudad chihuahua", "cd chihuahua"],
+    "Guadalajara": ["guadalajara", "gdl"],
+    "Mexicali": ["mexicali"],
+    "El Paso": ["el paso", "elpaso", "paso"]
+  };
+
+  for (const [oficial, lista] of Object.entries(aliases)) {
+    if (lista.some((alias) => t === normalizarTexto(alias) || t.includes(normalizarTexto(alias)))) {
+      return oficial;
+    }
+  }
+
+  return valor;
+}
+
+function resolverGrupo(valor = "") {
+  const t = normalizarTexto(valor);
+
+  const aliases = {
+    "Wendy's": ["wendys", "wendy", "wendy's"],
+    "Applebee's": ["applebees", "applebee", "applebee's"],
+    "Great American": ["great american", "great american steakhouse", "great"],
+    "Ardeo": ["ardeo"],
+    "Yoko": ["yoko"],
+    "Little Caesars": ["little caesars", "little", "caesars", "little caesar"],
+    "RH": ["rh", "recursos humanos", "reclutamiento"],
+    "Contabilidad": ["contabilidad", "contable"],
+    "Mercadotecnia": ["mercadotecnia", "marketing", "mkt"],
+    "Sistemas": ["sistemas", "soporte", "soporte tecnico", "it"],
+    "Monitoreo": ["monitoreo", "monitorista"],
+    "Proyectos y Construcción": ["proyectos y construccion", "proyectos", "construccion"],
+    "Capital Humano": ["capital humano", "capital", "talento humano"]
+  };
+
+  for (const [oficial, lista] of Object.entries(aliases)) {
+    if (lista.some((alias) => t === normalizarTexto(alias) || t.includes(normalizarTexto(alias)))) {
+      return oficial;
+    }
+  }
+
+  return valor;
+}
+
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
@@ -389,14 +484,26 @@ app.get("/api/ubicaciones", (req, res) => {
 });
 
 app.get("/api/vacantes", (req, res) => {
-  const { tipoVacante, pais, estado, ciudad, grupo } = req.query;
+  const tipoVacante = req.query.tipoVacante ? normalizarTexto(req.query.tipoVacante) : "";
+  const pais = req.query.pais ? normalizarTexto(resolverPais(req.query.pais)) : "";
+  const estado = req.query.estado ? normalizarTexto(resolverEstado(req.query.estado)) : "";
+  const ciudad = req.query.ciudad ? normalizarTexto(resolverCiudad(req.query.ciudad)) : "";
+  const grupo = req.query.grupo ? normalizarTexto(resolverGrupo(req.query.grupo)) : "";
 
   const resultado = vacantes.filter((v) => {
-    return (!tipoVacante || v.tipoVacante === tipoVacante) &&
-      (!pais || v.pais === pais) &&
-      (!estado || v.estado === estado) &&
-      (!ciudad || v.ciudad === ciudad) &&
-      (!grupo || v.grupo === grupo);
+    const vTipo = normalizarTexto(v.tipoVacante);
+    const vPais = normalizarTexto(v.pais);
+    const vEstado = normalizarTexto(v.estado);
+    const vCiudad = normalizarTexto(v.ciudad);
+    const vGrupo = normalizarTexto(v.grupo);
+
+    const coincideTipo = !tipoVacante || vTipo === tipoVacante;
+    const coincidePais = !pais || vPais.includes(pais) || pais.includes(vPais);
+    const coincideEstado = !estado || vEstado.includes(estado) || estado.includes(vEstado);
+    const coincideCiudad = !ciudad || vCiudad.includes(ciudad) || ciudad.includes(vCiudad);
+    const coincideGrupo = !grupo || vGrupo.includes(grupo) || grupo.includes(vGrupo);
+
+    return coincideTipo && coincidePais && coincideEstado && coincideCiudad && coincideGrupo;
   });
 
   res.json(resultado);
