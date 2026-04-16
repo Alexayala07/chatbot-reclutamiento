@@ -18,11 +18,45 @@ const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/* =========================
+   CARPETAS Y ARCHIVOS
+========================= */
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
+const dataDir = path.join(__dirname, "data");
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir);
+}
+
+const postulacionesFile = path.join(dataDir, "postulaciones.json");
+if (!fs.existsSync(postulacionesFile)) {
+  fs.writeFileSync(postulacionesFile, "[]", "utf-8");
+}
+
+function leerPostulaciones() {
+  try {
+    const raw = fs.readFileSync(postulacionesFile, "utf-8");
+    return JSON.parse(raw || "[]");
+  } catch (error) {
+    console.error("❌ Error leyendo postulaciones.json:", error);
+    return [];
+  }
+}
+
+function guardarPostulaciones(data) {
+  try {
+    fs.writeFileSync(postulacionesFile, JSON.stringify(data, null, 2), "utf-8");
+  } catch (error) {
+    console.error("❌ Error guardando postulaciones.json:", error);
+  }
+}
+
+/* =========================
+   MULTER
+========================= */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
@@ -65,6 +99,9 @@ const upload = multer({
   limits: { fileSize: 8 * 1024 * 1024 }
 });
 
+/* =========================
+   MIDDLEWARES
+========================= */
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
@@ -86,7 +123,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const postulaciones = [];
+/* =========================
+   DATA EN MEMORIA + ARCHIVO
+========================= */
+let postulaciones = leerPostulaciones();
 
 const ubicaciones = {
   "México": {
@@ -342,6 +382,9 @@ const vacantes = [
   }
 ];
 
+/* =========================
+   HELPERS
+========================= */
 function obtenerGruposPorTipo(tipoVacante) {
   const grupos = [...new Set(vacantes.filter((v) => v.tipoVacante === tipoVacante).map((v) => v.grupo))];
   return grupos.sort();
@@ -471,6 +514,9 @@ function resolverGrupo(valor = "") {
   return valor;
 }
 
+/* =========================
+   RUTAS
+========================= */
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
@@ -654,6 +700,7 @@ ${cvTexto.slice(0, 12000)}
       };
 
       postulaciones.push(postulacion);
+      guardarPostulaciones(postulaciones);
 
       res.json({
         ok: true,
@@ -670,6 +717,7 @@ ${cvTexto.slice(0, 12000)}
 );
 
 app.get("/api/postulaciones", (req, res) => {
+  postulaciones = leerPostulaciones();
   res.json(postulaciones);
 });
 
@@ -682,6 +730,8 @@ app.patch("/api/postulaciones/:id/estado", (req, res) => {
     return res.status(400).json({ error: "Estado no válido." });
   }
 
+  postulaciones = leerPostulaciones();
+
   const postulacion = postulaciones.find((p) => p.id === id);
 
   if (!postulacion) {
@@ -689,6 +739,7 @@ app.patch("/api/postulaciones/:id/estado", (req, res) => {
   }
 
   postulacion.estadoSolicitud = estado;
+  guardarPostulaciones(postulaciones);
 
   res.json({
     ok: true,
