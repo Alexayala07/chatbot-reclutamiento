@@ -71,19 +71,126 @@ let candidateProfile = {
 const chatHistory = [
   {
     role: "assistant",
-    content: "Hola 👋 Soy el asistente de reclutamiento. Puedo ayudarte con vacantes operativas, administrativas y orientación según tu CV."
+    type: "welcome",
+    content: "Hola 👋 Soy tu asistente de reclutamiento. Te ayudo a encontrar vacantes y a iniciar tu postulación.",
+    options: [
+      { label: "Ver vacantes", value: "ver_vacantes" },
+      { label: "Iniciar postulación", value: "iniciar_postulacion" },
+      { label: "Consultar estatus", value: "consultar_estatus" }
+    ]
   }
 ];
 
 function renderMessages() {
   if (!messagesDiv) return;
+
   messagesDiv.innerHTML = "";
 
   chatHistory.forEach((m) => {
-    const el = document.createElement("div");
-    el.className = `msg ${m.role}`;
-    el.textContent = m.content;
-    messagesDiv.appendChild(el);
+    const wrapper = document.createElement("div");
+    wrapper.className = `msg ${m.role}`;
+
+    if (m.type === "welcome" || m.type === "options") {
+      const text = document.createElement("div");
+      text.textContent = m.content;
+      wrapper.appendChild(text);
+
+      const optionsWrap = document.createElement("div");
+      optionsWrap.className = "chat-options";
+
+      (m.options || []).forEach((opt) => {
+        const btn = document.createElement("button");
+        btn.className = "chat-option-btn";
+        btn.textContent = opt.label;
+        btn.type = "button";
+
+        btn.addEventListener("click", async () => {
+          if (opt.value === "ver_vacantes") {
+            await mostrarVacantesEnChat();
+          } else if (opt.value === "iniciar_postulacion") {
+            startApplicationFlow();
+          } else if (opt.value === "consultar_estatus") {
+            openChat();
+            chatHistory.push({
+              role: "assistant",
+              type: "text",
+              content: "Escribe tu folio en la sección de consulta de estatus para revisar tu proceso."
+            });
+            renderMessages();
+          } else {
+            await handleQuickOption(opt.value, opt.label);
+          }
+        });
+
+        optionsWrap.appendChild(btn);
+      });
+
+      wrapper.appendChild(optionsWrap);
+    } else if (m.type === "vacancies") {
+      const text = document.createElement("div");
+      text.textContent = m.content;
+      wrapper.appendChild(text);
+
+      const list = document.createElement("div");
+      list.className = "chat-vacancies";
+
+      (m.vacancies || []).forEach((vacante) => {
+        const card = document.createElement("div");
+        card.className = "chat-vacancy-card";
+
+        card.innerHTML = `
+          <h4>${vacante.titulo}</h4>
+          <p><strong>${vacante.grupo}</strong></p>
+          <p>${vacante.area}</p>
+          <p>${vacante.ciudad}, ${vacante.estado}</p>
+        `;
+
+        const btn = document.createElement("button");
+        btn.className = "chat-option-btn";
+        btn.textContent = "Me interesa";
+        btn.type = "button";
+
+        btn.addEventListener("click", () => {
+          openChat();
+
+          applicationFlow = {
+            active: true,
+            step: 7,
+            data: {
+              tipoVacante: vacante.tipoVacante,
+              pais: vacante.pais,
+              estado: vacante.estado,
+              ciudad: vacante.ciudad,
+              grupoSeleccionado: vacante.grupo,
+              vacanteId: vacante.id,
+              vacanteTitulo: vacante.titulo,
+              puestoInteres: vacante.titulo
+            },
+            cvFile: null,
+            ineFile: null,
+            curpFile: null,
+            domicilioFile: null
+          };
+
+          chatHistory.push({
+            role: "assistant",
+            type: "text",
+            content: `Perfecto. Ya registré tu interés en la vacante "${vacante.titulo}" de ${vacante.grupo} en ${vacante.ciudad}. Ahora dime: ¿cuál es tu nombre completo?`
+          });
+
+          renderMessages();
+        });
+
+        card.appendChild(btn);
+        list.appendChild(card);
+      });
+
+      wrapper.appendChild(list);
+    } else {
+      wrapper.textContent = m.content;
+    }
+
+    messagesDiv.appendChild(wrapper);
   });
 
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -101,6 +208,25 @@ function closeChat() {
 }
 
 async function sendMessageToBot(userText) {
+  const saludo = userText.trim().toLowerCase();
+
+  if (["hola", "buenas", "buenos dias", "buenas tardes", "buenas noches"].includes(saludo)) {
+    chatHistory.push({ role: "user", content: userText });
+    chatHistory.push({
+      role: "assistant",
+      type: "options",
+      content: "¡Hola! Selecciona una opción para continuar:",
+      options: [
+        { label: "Ver vacantes operativas", value: "ver_operativas" },
+        { label: "Ver vacantes administrativas", value: "ver_administrativas" },
+        { label: "Iniciar postulación", value: "iniciar_postulacion" },
+        { label: "Consultar estatus", value: "consultar_estatus" }
+      ]
+    });
+    renderMessages();
+    return;
+  }
+
   chatHistory.push({ role: "user", content: userText });
   renderMessages();
 
@@ -111,7 +237,10 @@ async function sendMessageToBot(userText) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        messages: chatHistory,
+        messages: chatHistory.map((m) => ({
+          role: m.role,
+          content: m.content
+        })),
         candidateProfile
       })
     });
@@ -119,10 +248,15 @@ async function sendMessageToBot(userText) {
     const data = await response.json();
 
     if (data.reply) {
-      chatHistory.push(data.reply);
+      chatHistory.push({
+        role: data.reply.role || "assistant",
+        type: "text",
+        content: data.reply.content || "No pude responder en este momento."
+      });
     } else {
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "⚠️ No pude responder en este momento."
       });
     }
@@ -130,11 +264,85 @@ async function sendMessageToBot(userText) {
     console.error("Error enviando mensaje al chatbot:", error);
     chatHistory.push({
       role: "assistant",
+      type: "text",
       content: "⚠️ Error de conexión con el servidor."
     });
   }
 
   renderMessages();
+}
+
+async function mostrarVacantesEnChat() {
+  try {
+    const res = await fetch(`${API_URL}/api/vacantes`);
+    const vacantes = await res.json();
+
+    if (!Array.isArray(vacantes) || !vacantes.length) {
+      chatHistory.push({
+        role: "assistant",
+        type: "text",
+        content: "No encontré vacantes disponibles en este momento."
+      });
+      renderMessages();
+      return;
+    }
+
+    chatHistory.push({
+      role: "assistant",
+      type: "vacancies",
+      content: "Estas son algunas vacantes disponibles. Selecciona la que te interese:",
+      vacancies: vacantes.slice(0, 8)
+    });
+
+    renderMessages();
+  } catch (error) {
+    console.error("Error cargando vacantes en chat:", error);
+    chatHistory.push({
+      role: "assistant",
+      type: "text",
+      content: "No pude cargar las vacantes en este momento."
+    });
+    renderMessages();
+  }
+}
+
+async function handleQuickOption(value, label) {
+  chatHistory.push({
+    role: "user",
+    content: label
+  });
+
+  if (value === "ver_operativas") {
+    await mostrarVacantesFiltradas("operativa");
+    return;
+  }
+
+  if (value === "ver_administrativas") {
+    await mostrarVacantesFiltradas("administrativa");
+    return;
+  }
+
+  renderMessages();
+}
+
+async function mostrarVacantesFiltradas(tipo) {
+  try {
+    const res = await fetch(`${API_URL}/api/vacantes?tipoVacante=${encodeURIComponent(tipo)}`);
+    const vacantes = await res.json();
+
+    chatHistory.push({
+      role: "assistant",
+      type: "vacancies",
+      content: tipo === "operativa"
+        ? "Estas son las vacantes operativas disponibles:"
+        : "Estas son las vacantes administrativas disponibles:",
+      vacancies: vacantes
+    });
+
+    renderMessages();
+  } catch (error) {
+    console.error("Error filtrando vacantes:", error);
+  }
 }
 
 async function cargarUbicaciones() {
@@ -241,6 +449,7 @@ async function cargarVacantesVista() {
 
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: `Perfecto. Ya registré tu interés en la vacante "${vacante.titulo}" de ${vacante.grupo} en ${vacante.ciudad}. Ahora dime: ¿cuál es tu nombre completo?`
       });
 
@@ -289,6 +498,7 @@ function startApplicationFlow() {
 
   chatHistory.push({
     role: "assistant",
+    type: "text",
     content: "Perfecto. Vamos a iniciar tu postulación. Primero dime: ¿buscas una vacante operativa/restaurante o administrativa/corporativo?"
   });
 
@@ -304,6 +514,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 2;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "¿En qué país te interesa trabajar? Ejemplo: México o Estados Unidos."
       });
       break;
@@ -313,6 +524,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 3;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "¿En qué estado te interesa trabajar?"
       });
       break;
@@ -322,6 +534,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 4;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "¿En qué ciudad te interesa trabajar?"
       });
       break;
@@ -331,6 +544,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 5;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: applicationFlow.data.tipoVacante === "operativa"
           ? "¿Qué marca te interesa? Ejemplo: Wendy's, Applebee's, Great American, Ardeo, Yoko o Little Caesars."
           : "¿Qué departamento te interesa? Ejemplo: RH, Contabilidad, Sistemas, Mercadotecnia, Monitoreo o Capital Humano."
@@ -354,6 +568,7 @@ async function handleApplicationFlow(userText) {
       if (!vacs.length) {
         chatHistory.push({
           role: "assistant",
+          type: "text",
           content: "No encontré vacantes con esa combinación. Intenta con otra ciudad, grupo o tipo de vacante."
         });
         break;
@@ -364,6 +579,7 @@ async function handleApplicationFlow(userText) {
 
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content:
           "Estas son las vacantes disponibles:\n" +
           vacs.map((v, i) => `${i + 1}. ${v.titulo} - ${v.grupo} - ${v.ciudad}`).join("\n") +
@@ -379,6 +595,7 @@ async function handleApplicationFlow(userText) {
       if (!vacante) {
         chatHistory.push({
           role: "assistant",
+          type: "text",
           content: "No reconocí esa opción. Escríbeme el número de la vacante que te interesa. Ejemplo: 1"
         });
         break;
@@ -391,6 +608,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 7;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "¿Cuál es tu nombre completo?"
       });
       break;
@@ -401,6 +619,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 8;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "Compárteme tu correo electrónico."
       });
       break;
@@ -410,6 +629,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 9;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "Ahora tu teléfono, por favor."
       });
       break;
@@ -419,6 +639,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 10;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "¿Qué edad tienes?"
       });
       break;
@@ -428,6 +649,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 11;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "¿Cuál es tu disponibilidad? Ejemplo: tiempo completo, medio tiempo o fines de semana."
       });
       break;
@@ -437,6 +659,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 12;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "¿Cuál es tu escolaridad?"
       });
       break;
@@ -446,6 +669,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 13;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "Cuéntame brevemente tu experiencia laboral."
       });
       break;
@@ -455,6 +679,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 14;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "Ahora dime tus habilidades principales."
       });
       break;
@@ -464,6 +689,7 @@ async function handleApplicationFlow(userText) {
       applicationFlow.step = 15;
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "Muy bien. Ahora usa el botón 'Adjuntar CV PDF' para subir tu CV."
       });
       break;
@@ -480,6 +706,7 @@ async function submitApplicationFromChat() {
   if (!applicationFlow.cvFile) {
     chatHistory.push({
       role: "assistant",
+      type: "text",
       content: "⚠️ Debes adjuntar tu CV en PDF antes de enviar la postulación."
     });
     renderMessages();
@@ -524,6 +751,7 @@ async function submitApplicationFromChat() {
 
     chatHistory.push({
       role: "assistant",
+      type: "text",
       content:
         `✅ Tu postulación fue enviada correctamente para ${data.postulacion.vacanteTitulo}. ` +
         `Tu folio es ${data.postulacion.id}. ` +
@@ -534,6 +762,7 @@ async function submitApplicationFromChat() {
   } catch (error) {
     chatHistory.push({
       role: "assistant",
+      type: "text",
       content: `⚠️ ${error.message}`
     });
     renderMessages();
@@ -575,6 +804,7 @@ if (attachCvBtn && chatCvFile) {
       openChat();
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "Primero completa los pasos iniciales de tu postulación y luego adjunta tu CV."
       });
       renderMessages();
@@ -592,6 +822,7 @@ if (attachCvBtn && chatCvFile) {
     if (!isPdf) {
       chatHistory.push({
         role: "assistant",
+        type: "text",
         content: "⚠️ Solo se permite subir el CV en formato PDF."
       });
       renderMessages();
@@ -602,6 +833,7 @@ if (attachCvBtn && chatCvFile) {
 
     chatHistory.push({
       role: "assistant",
+      type: "text",
       content: "✅ CV cargado correctamente. Si deseas, ahora puedes adjuntar INE, CURP o comprobante de domicilio. Si no, escribe 'continuar' para enviar tu postulación."
     });
     renderMessages();
@@ -614,7 +846,7 @@ if (attachIneBtn && chatIneFile) {
     const file = chatIneFile.files?.[0];
     if (!file) return;
     applicationFlow.ineFile = file;
-    chatHistory.push({ role: "assistant", content: "✅ INE cargado correctamente." });
+    chatHistory.push({ role: "assistant", type: "text", content: "✅ INE cargado correctamente." });
     renderMessages();
   });
 }
@@ -625,7 +857,7 @@ if (attachCurpBtn && chatCurpFile) {
     const file = chatCurpFile.files?.[0];
     if (!file) return;
     applicationFlow.curpFile = file;
-    chatHistory.push({ role: "assistant", content: "✅ CURP cargado correctamente." });
+    chatHistory.push({ role: "assistant", type: "text", content: "✅ CURP cargado correctamente." });
     renderMessages();
   });
 }
@@ -636,7 +868,7 @@ if (attachDomicilioBtn && chatDomicilioFile) {
     const file = chatDomicilioFile.files?.[0];
     if (!file) return;
     applicationFlow.domicilioFile = file;
-    chatHistory.push({ role: "assistant", content: "✅ Comprobante de domicilio cargado correctamente." });
+    chatHistory.push({ role: "assistant", type: "text", content: "✅ Comprobante de domicilio cargado correctamente." });
     renderMessages();
   });
 }
@@ -676,4 +908,4 @@ async function init() {
   await cargarVacantesVista();
 }
 
-init();
+init(); 
