@@ -38,6 +38,7 @@ let vacantesData = [];
 
 let applicationFlow = {
   active: false,
+  mode: "",
   step: 0,
   data: {},
   cvFile: null,
@@ -72,8 +73,9 @@ const chatHistory = [
   {
     role: "assistant",
     type: "welcome",
-    content: "Hola 👋 Soy tu asistente de reclutamiento. Te ayudo a encontrar vacantes y a iniciar tu postulación.",
+    content: "Hola 👋 Soy tu asistente de reclutamiento. Puedo analizar tu CV, recomendarte vacantes y ayudarte a postularte.",
     options: [
+      { label: "Analizar mi CV", value: "analizar_cv" },
       { label: "Ver vacantes", value: "ver_vacantes" },
       { label: "Iniciar postulación", value: "iniciar_postulacion" },
       { label: "Consultar estatus", value: "consultar_estatus" }
@@ -125,7 +127,7 @@ function resolvePais(value = "") {
   const t = normalizeText(value);
 
   const aliases = {
-    "méxico": ["mexico", "mx", "méxico"],
+    "México": ["mexico", "méxico", "mx"],
     "Estados Unidos": ["estados unidos", "usa", "us", "eeuu", "eua", "united states"]
   };
 
@@ -182,7 +184,7 @@ function resolveGrupo(value = "", tipoVacante = "") {
   const tipo = normalizeText(tipoVacante);
 
   const aliasesOperativas = {
-    "Wendy's": ["wendys", "wendys restaurant", "wendy", "wendy's"],
+    "Wendy's": ["wendys", "wendy", "wendy's"],
     "Applebee's": ["applebees", "applebee", "applebee's"],
     "Great American": ["great american", "great american steakhouse", "great"],
     "Ardeo": ["ardeo"],
@@ -209,6 +211,26 @@ function resolveGrupo(value = "", tipoVacante = "") {
   }
 
   return value;
+}
+
+/* =========================
+   HELPERS
+========================= */
+function addAssistantText(content) {
+  chatHistory.push({
+    role: "assistant",
+    type: "text",
+    content
+  });
+  renderMessages();
+}
+
+function addUserText(content) {
+  chatHistory.push({
+    role: "user",
+    content
+  });
+  renderMessages();
 }
 
 /* =========================
@@ -242,14 +264,11 @@ function renderMessages() {
             await mostrarVacantesEnChat();
           } else if (opt.value === "iniciar_postulacion") {
             startApplicationFlow();
+          } else if (opt.value === "analizar_cv") {
+            startCvAnalysisFlow();
           } else if (opt.value === "consultar_estatus") {
             openChat();
-            chatHistory.push({
-              role: "assistant",
-              type: "text",
-              content: "Escribe tu folio en la sección de consulta de estatus para revisar tu proceso."
-            });
-            renderMessages();
+            addAssistantText("Escribe tu folio en la sección de consulta de estatus para revisar tu proceso.");
           } else {
             await handleQuickOption(opt.value, opt.label);
           }
@@ -284,34 +303,7 @@ function renderMessages() {
         btn.type = "button";
 
         btn.addEventListener("click", () => {
-          openChat();
-
-          applicationFlow = {
-            active: true,
-            step: 7,
-            data: {
-              tipoVacante: vacante.tipoVacante,
-              pais: vacante.pais,
-              estado: vacante.estado,
-              ciudad: vacante.ciudad,
-              grupoSeleccionado: vacante.grupo,
-              vacanteId: vacante.id,
-              vacanteTitulo: vacante.titulo,
-              puestoInteres: vacante.titulo
-            },
-            cvFile: null,
-            ineFile: null,
-            curpFile: null,
-            domicilioFile: null
-          };
-
-          chatHistory.push({
-            role: "assistant",
-            type: "text",
-            content: `Perfecto. Ya registré tu interés en la vacante "${vacante.titulo}" de ${vacante.grupo} en ${vacante.ciudad}. Ahora dime: ¿cuál es tu nombre completo?`
-          });
-
-          renderMessages();
+          seleccionarVacanteDesdeChat(vacante);
         });
 
         card.appendChild(btn);
@@ -347,12 +339,13 @@ async function sendMessageToBot(userText) {
   const saludo = normalizeText(userText);
 
   if (["hola", "buenas", "buenos dias", "buenas tardes", "buenas noches"].includes(saludo)) {
-    chatHistory.push({ role: "user", content: userText });
+    addUserText(userText);
     chatHistory.push({
       role: "assistant",
       type: "options",
       content: "¡Hola! Selecciona una opción para continuar:",
       options: [
+        { label: "Analizar mi CV", value: "analizar_cv" },
         { label: "Ver vacantes operativas", value: "ver_operativas" },
         { label: "Ver vacantes administrativas", value: "ver_administrativas" },
         { label: "Iniciar postulación", value: "iniciar_postulacion" },
@@ -363,8 +356,7 @@ async function sendMessageToBot(userText) {
     return;
   }
 
-  chatHistory.push({ role: "user", content: userText });
-  renderMessages();
+  addUserText(userText);
 
   try {
     const response = await fetch(`${API_URL}/chat`, {
@@ -390,19 +382,13 @@ async function sendMessageToBot(userText) {
         content: data.reply.content || "No pude responder en este momento."
       });
     } else {
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "⚠️ No pude responder en este momento."
-      });
+      addAssistantText("⚠️ No pude responder en este momento.");
+      return;
     }
   } catch (error) {
     console.error("Error enviando mensaje al chatbot:", error);
-    chatHistory.push({
-      role: "assistant",
-      type: "text",
-      content: "⚠️ Error de conexión con el servidor."
-    });
+    addAssistantText("⚠️ Error de conexión con el servidor.");
+    return;
   }
 
   renderMessages();
@@ -414,12 +400,7 @@ async function mostrarVacantesEnChat() {
     const vacantes = await res.json();
 
     if (!Array.isArray(vacantes) || !vacantes.length) {
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "No encontré vacantes disponibles en este momento."
-      });
-      renderMessages();
+      addAssistantText("No encontré vacantes disponibles en este momento.");
       return;
     }
 
@@ -433,20 +414,12 @@ async function mostrarVacantesEnChat() {
     renderMessages();
   } catch (error) {
     console.error("Error cargando vacantes en chat:", error);
-    chatHistory.push({
-      role: "assistant",
-      type: "text",
-      content: "No pude cargar las vacantes en este momento."
-    });
-    renderMessages();
+    addAssistantText("No pude cargar las vacantes en este momento.");
   }
 }
 
 async function handleQuickOption(value, label) {
-  chatHistory.push({
-    role: "user",
-    content: label
-  });
+  addUserText(label);
 
   if (value === "ver_operativas") {
     await mostrarVacantesFiltradas("operativa");
@@ -457,8 +430,6 @@ async function handleQuickOption(value, label) {
     await mostrarVacantesFiltradas("administrativa");
     return;
   }
-
-  renderMessages();
 }
 
 async function mostrarVacantesFiltradas(tipo) {
@@ -478,6 +449,76 @@ async function mostrarVacantesFiltradas(tipo) {
     renderMessages();
   } catch (error) {
     console.error("Error filtrando vacantes:", error);
+    addAssistantText("No fue posible cargar esas vacantes.");
+  }
+}
+
+/* =========================
+   ANÁLISIS DE CV
+========================= */
+function startCvAnalysisFlow() {
+  applicationFlow = {
+    active: true,
+    mode: "cv_analysis",
+    step: 100,
+    data: {},
+    cvFile: null,
+    ineFile: null,
+    curpFile: null,
+    domicilioFile: null
+  };
+
+  openChat();
+  addAssistantText("Perfecto. Vamos a analizar tu CV. Usa el botón 'Adjuntar CV PDF' para cargarlo y después escribe 'analizar'.");
+}
+
+async function processCvAnalysisOnly() {
+  if (!applicationFlow.cvFile) {
+    addAssistantText("⚠️ Primero debes adjuntar tu CV en formato PDF.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("cvFile", applicationFlow.cvFile);
+
+  try {
+    const response = await fetch(`${API_URL}/api/analizar-cv`, {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "No fue posible analizar el CV.");
+    }
+
+    const analisis = data.analisis || {};
+    const sugerencias = Array.isArray(analisis.sugerenciasIA) ? analisis.sugerenciasIA : [];
+
+    candidateProfile.cvNombre = analisis.cvNombre || applicationFlow.cvFile.name;
+    candidateProfile.resumenIA = analisis.resumenIA || "";
+
+    addAssistantText(`✅ Análisis completado. Resumen detectado: ${candidateProfile.resumenIA || "No disponible"}`);
+
+    if (sugerencias.length) {
+      chatHistory.push({
+        role: "assistant",
+        type: "vacancies",
+        content: "Estas son las vacantes que mejor podrían adaptarse a tu CV:",
+        vacancies: sugerencias
+      });
+      renderMessages();
+    } else {
+      addAssistantText("No encontré sugerencias automáticas en este momento, pero puedes explorar las vacantes disponibles abajo.");
+    }
+
+    applicationFlow.active = false;
+    applicationFlow.mode = "";
+    applicationFlow.step = 0;
+  } catch (error) {
+    console.error("Error analizando CV:", error);
+    addAssistantText(`⚠️ ${error.message}`);
   }
 }
 
@@ -567,37 +608,35 @@ async function cargarVacantesVista() {
     btn.addEventListener("click", () => {
       const vacante = vacantesData.find((v) => v.id === btn.dataset.id);
       if (!vacante) return;
-
-      openChat();
-
-      applicationFlow = {
-        active: true,
-        step: 7,
-        data: {
-          tipoVacante: vacante.tipoVacante,
-          pais: vacante.pais,
-          estado: vacante.estado,
-          ciudad: vacante.ciudad,
-          grupoSeleccionado: vacante.grupo,
-          vacanteId: vacante.id,
-          vacanteTitulo: vacante.titulo,
-          puestoInteres: vacante.titulo
-        },
-        cvFile: null,
-        ineFile: null,
-        curpFile: null,
-        domicilioFile: null
-      };
-
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: `Perfecto. Ya registré tu interés en la vacante "${vacante.titulo}" de ${vacante.grupo} en ${vacante.ciudad}. Ahora dime: ¿cuál es tu nombre completo?`
-      });
-
-      renderMessages();
+      seleccionarVacanteDesdeChat(vacante);
     });
   });
+}
+
+function seleccionarVacanteDesdeChat(vacante) {
+  openChat();
+
+  applicationFlow = {
+    active: true,
+    mode: "application",
+    step: 7,
+    data: {
+      tipoVacante: vacante.tipoVacante,
+      pais: vacante.pais,
+      estado: vacante.estado,
+      ciudad: vacante.ciudad,
+      grupoSeleccionado: vacante.grupo,
+      vacanteId: vacante.id,
+      vacanteTitulo: vacante.titulo,
+      puestoInteres: vacante.titulo
+    },
+    cvFile: null,
+    ineFile: null,
+    curpFile: null,
+    domicilioFile: null
+  };
+
+  addAssistantText(`Perfecto. Ya registré tu interés en la vacante "${vacante.titulo}" de ${vacante.grupo} en ${vacante.ciudad}. Ahora dime: ¿cuál es tu nombre completo?`);
 }
 
 /* =========================
@@ -634,6 +673,7 @@ async function consultarEstatus() {
 function startApplicationFlow() {
   applicationFlow = {
     active: true,
+    mode: "application",
     step: 1,
     data: {},
     cvFile: null,
@@ -643,14 +683,7 @@ function startApplicationFlow() {
   };
 
   openChat();
-
-  chatHistory.push({
-    role: "assistant",
-    type: "text",
-    content: "Perfecto. Vamos a iniciar tu postulación. Primero dime: ¿buscas una vacante operativa/restaurante o administrativa/corporativo?"
-  });
-
-  renderMessages();
+  addAssistantText("Perfecto. Vamos a iniciar tu postulación. Primero dime: ¿buscas una vacante operativa/restaurante o administrativa/corporativo?");
 }
 
 async function handleApplicationFlow(userText) {
@@ -660,43 +693,29 @@ async function handleApplicationFlow(userText) {
     case 1:
       applicationFlow.data.tipoVacante = resolveTipoVacante(text);
       applicationFlow.step = 2;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "¿En qué país te interesa trabajar? Ejemplo: México o Estados Unidos."
-      });
+      addAssistantText("¿En qué país te interesa trabajar? Ejemplo: México o Estados Unidos.");
       break;
 
     case 2:
       applicationFlow.data.pais = resolvePais(text);
       applicationFlow.step = 3;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "¿En qué estado te interesa trabajar? Ejemplo: Chihuahua, Jalisco, Baja California o Texas."
-      });
+      addAssistantText("¿En qué estado te interesa trabajar? Ejemplo: Chihuahua, Jalisco, Baja California o Texas.");
       break;
 
     case 3:
       applicationFlow.data.estado = resolveEstado(text);
       applicationFlow.step = 4;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "¿En qué ciudad te interesa trabajar? Ejemplo: Ciudad Juárez, Chihuahua, Guadalajara, Mexicali o El Paso."
-      });
+      addAssistantText("¿En qué ciudad te interesa trabajar? Ejemplo: Ciudad Juárez, Chihuahua, Guadalajara, Mexicali o El Paso.");
       break;
 
     case 4:
       applicationFlow.data.ciudad = resolveCiudad(text);
       applicationFlow.step = 5;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: applicationFlow.data.tipoVacante === "administrativa"
+      addAssistantText(
+        applicationFlow.data.tipoVacante === "administrativa"
           ? "¿Qué departamento te interesa? Ejemplo: RH, Contabilidad, Sistemas, Mercadotecnia, Monitoreo o Capital Humano."
           : "¿Qué marca te interesa? Ejemplo: Wendy's, Applebee's, Great American, Ardeo, Yoko o Little Caesars."
-      });
+      );
       break;
 
     case 5: {
@@ -714,11 +733,7 @@ async function handleApplicationFlow(userText) {
       const vacs = await res.json();
 
       if (!vacs.length) {
-        chatHistory.push({
-          role: "assistant",
-          type: "text",
-          content: "No encontré vacantes con esa combinación. Puedes intentar con otra ciudad, otra marca o escribir el nombre de otra opción disponible."
-        });
+        addAssistantText("No encontré vacantes con esa combinación. Puedes intentar con otra ciudad, otra marca o escribir otra opción.");
         break;
       }
 
@@ -728,9 +743,10 @@ async function handleApplicationFlow(userText) {
       chatHistory.push({
         role: "assistant",
         type: "vacancies",
-        content: "Encontré estas vacantes disponibles. Selecciona una:",
+        content: "Encontré estas vacantes disponibles. Selecciona la que te interese:",
         vacancies: vacs
       });
+      renderMessages();
       break;
     }
 
@@ -739,123 +755,76 @@ async function handleApplicationFlow(userText) {
       const vacante = applicationFlow.data.vacantesDisponibles?.[index];
 
       if (!vacante) {
-        chatHistory.push({
-          role: "assistant",
-          type: "text",
-          content: "No reconocí esa opción. Puedes escribir el número de la vacante o tocar el botón 'Me interesa' en la tarjeta."
-        });
+        addAssistantText("No reconocí esa opción. Puedes escribir el número de la vacante o tocar el botón 'Me interesa' en la tarjeta.");
         break;
       }
 
       applicationFlow.data.vacanteId = vacante.id;
       applicationFlow.data.vacanteTitulo = vacante.titulo;
       applicationFlow.data.puestoInteres = vacante.titulo;
-
       applicationFlow.step = 7;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "¿Cuál es tu nombre completo?"
-      });
+      addAssistantText("¿Cuál es tu nombre completo?");
       break;
     }
 
     case 7:
       applicationFlow.data.nombre = text;
       applicationFlow.step = 8;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "Compárteme tu correo electrónico."
-      });
+      addAssistantText("Compárteme tu correo electrónico.");
       break;
 
     case 8:
       applicationFlow.data.correo = text;
       applicationFlow.step = 9;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "Ahora tu teléfono, por favor."
-      });
+      addAssistantText("Ahora tu teléfono, por favor.");
       break;
 
     case 9:
       applicationFlow.data.telefono = text;
       applicationFlow.step = 10;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "¿Qué edad tienes?"
-      });
+      addAssistantText("¿Qué edad tienes?");
       break;
 
     case 10:
       applicationFlow.data.edad = text;
       applicationFlow.step = 11;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "¿Cuál es tu disponibilidad? Ejemplo: tiempo completo, medio tiempo o fines de semana."
-      });
+      addAssistantText("¿Cuál es tu disponibilidad? Ejemplo: tiempo completo, medio tiempo o fines de semana.");
       break;
 
     case 11:
       applicationFlow.data.disponibilidad = text;
       applicationFlow.step = 12;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "¿Cuál es tu escolaridad?"
-      });
+      addAssistantText("¿Cuál es tu escolaridad?");
       break;
 
     case 12:
       applicationFlow.data.escolaridad = text;
       applicationFlow.step = 13;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "Cuéntame brevemente tu experiencia laboral."
-      });
+      addAssistantText("Cuéntame brevemente tu experiencia laboral.");
       break;
 
     case 13:
       applicationFlow.data.experiencia = text;
       applicationFlow.step = 14;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "Ahora dime tus habilidades principales."
-      });
+      addAssistantText("Ahora dime tus habilidades principales.");
       break;
 
     case 14:
       applicationFlow.data.habilidades = text;
       applicationFlow.step = 15;
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "Muy bien. Ahora usa el botón 'Adjuntar CV PDF' para subir tu CV."
-      });
+      addAssistantText("Muy bien. Ahora usa el botón 'Adjuntar CV PDF' para subir tu CV.");
       break;
 
     default:
       applicationFlow.active = false;
+      applicationFlow.mode = "";
       break;
   }
-
-  renderMessages();
 }
 
 async function submitApplicationFromChat() {
   if (!applicationFlow.cvFile) {
-    chatHistory.push({
-      role: "assistant",
-      type: "text",
-      content: "⚠️ Debes adjuntar tu CV en PDF antes de enviar la postulación."
-    });
-    renderMessages();
+    addAssistantText("⚠️ Debes adjuntar tu CV en PDF antes de enviar la postulación.");
     return;
   }
 
@@ -894,24 +863,16 @@ async function submitApplicationFromChat() {
     };
 
     applicationFlow.active = false;
+    applicationFlow.mode = "";
 
-    chatHistory.push({
-      role: "assistant",
-      type: "text",
-      content:
-        `✅ Tu postulación fue enviada correctamente para ${data.postulacion.vacanteTitulo}. ` +
-        `Tu folio es ${data.postulacion.id}. ` +
-        `Resumen de tu CV: ${data.postulacion.resumenIA}`
-    });
-
-    renderMessages();
+    addAssistantText(
+      `✅ Tu postulación fue enviada correctamente para ${data.postulacion.vacanteTitulo}. ` +
+      `Tu folio es ${data.postulacion.id}. ` +
+      `Resumen de tu CV: ${data.postulacion.resumenIA}`
+    );
   } catch (error) {
-    chatHistory.push({
-      role: "assistant",
-      type: "text",
-      content: `⚠️ ${error.message}`
-    });
-    renderMessages();
+    console.error("Error enviando postulación:", error);
+    addAssistantText(`⚠️ ${error.message}`);
   }
 }
 
@@ -922,11 +883,11 @@ if (toggle) toggle.addEventListener("click", openChat);
 if (closeBtn) closeBtn.addEventListener("click", closeChat);
 
 if (startApplicationBtn) {
-  startApplicationBtn.addEventListener("click", startApplicationFlow);
+  startApplicationBtn.addEventListener("click", startCvAnalysisFlow);
 }
 
 if (startApplicationBtnSecondary) {
-  startApplicationBtnSecondary.addEventListener("click", startApplicationFlow);
+  startApplicationBtnSecondary.addEventListener("click", startCvAnalysisFlow);
 }
 
 if (filtroPais) {
@@ -949,14 +910,15 @@ if (consultarStatusBtn) consultarStatusBtn.addEventListener("click", consultarEs
 
 if (attachCvBtn && chatCvFile) {
   attachCvBtn.addEventListener("click", () => {
-    if (!applicationFlow.active || applicationFlow.step < 15) {
+    if (!applicationFlow.active) {
       openChat();
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "Primero completa los pasos iniciales de tu postulación y luego adjunta tu CV."
-      });
-      renderMessages();
+      addAssistantText("Primero inicia el análisis de CV o la postulación y luego adjunta tu archivo.");
+      return;
+    }
+
+    if (applicationFlow.mode === "application" && applicationFlow.step < 15) {
+      openChat();
+      addAssistantText("Primero completa los pasos iniciales de tu postulación y luego adjunta tu CV.");
       return;
     }
 
@@ -969,23 +931,17 @@ if (attachCvBtn && chatCvFile) {
 
     const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     if (!isPdf) {
-      chatHistory.push({
-        role: "assistant",
-        type: "text",
-        content: "⚠️ Solo se permite subir el CV en formato PDF."
-      });
-      renderMessages();
+      addAssistantText("⚠️ Solo se permite subir el CV en formato PDF.");
       return;
     }
 
     applicationFlow.cvFile = file;
 
-    chatHistory.push({
-      role: "assistant",
-      type: "text",
-      content: "✅ CV cargado correctamente. Si deseas, ahora puedes adjuntar INE, CURP o comprobante de domicilio. Si no, escribe 'continuar' para enviar tu postulación."
-    });
-    renderMessages();
+    if (applicationFlow.mode === "cv_analysis") {
+      addAssistantText("✅ CV cargado correctamente. Ahora escribe 'analizar' para revisar tu perfil y recomendarte vacantes.");
+    } else {
+      addAssistantText("✅ CV cargado correctamente. Si deseas, ahora puedes adjuntar INE, CURP o comprobante de domicilio. Si no, escribe 'continuar' para enviar tu postulación.");
+    }
   });
 }
 
@@ -995,8 +951,7 @@ if (attachIneBtn && chatIneFile) {
     const file = chatIneFile.files?.[0];
     if (!file) return;
     applicationFlow.ineFile = file;
-    chatHistory.push({ role: "assistant", type: "text", content: "✅ INE cargado correctamente." });
-    renderMessages();
+    addAssistantText("✅ INE cargado correctamente.");
   });
 }
 
@@ -1006,8 +961,7 @@ if (attachCurpBtn && chatCurpFile) {
     const file = chatCurpFile.files?.[0];
     if (!file) return;
     applicationFlow.curpFile = file;
-    chatHistory.push({ role: "assistant", type: "text", content: "✅ CURP cargado correctamente." });
-    renderMessages();
+    addAssistantText("✅ CURP cargado correctamente.");
   });
 }
 
@@ -1017,8 +971,7 @@ if (attachDomicilioBtn && chatDomicilioFile) {
     const file = chatDomicilioFile.files?.[0];
     if (!file) return;
     applicationFlow.domicilioFile = file;
-    chatHistory.push({ role: "assistant", type: "text", content: "✅ Comprobante de domicilio cargado correctamente." });
-    renderMessages();
+    addAssistantText("✅ Comprobante de domicilio cargado correctamente.");
   });
 }
 
@@ -1034,16 +987,22 @@ if (form) {
     input.focus();
 
     if (applicationFlow.active) {
-      chatHistory.push({ role: "user", content: text });
-      renderMessages();
+      addUserText(text);
 
-      if (applicationFlow.step >= 15 && normalizeText(text) === "continuar") {
+      if (applicationFlow.mode === "cv_analysis" && normalizeText(text) === "analizar") {
+        await processCvAnalysisOnly();
+        return;
+      }
+
+      if (applicationFlow.mode === "application" && applicationFlow.step >= 15 && normalizeText(text) === "continuar") {
         await submitApplicationFromChat();
         return;
       }
 
-      await handleApplicationFlow(text);
-      return;
+      if (applicationFlow.mode === "application") {
+        await handleApplicationFlow(text);
+        return;
+      }
     }
 
     await sendMessageToBot(text);

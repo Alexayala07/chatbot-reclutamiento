@@ -36,110 +36,12 @@ if (!fs.existsSync(postulacionesFile)) {
   fs.writeFileSync(postulacionesFile, "[]", "utf-8");
 }
 
-function leerPostulaciones() {
-  try {
-    const raw = fs.readFileSync(postulacionesFile, "utf-8");
-    return JSON.parse(raw || "[]");
-  } catch (error) {
-    console.error("❌ Error leyendo postulaciones.json:", error);
-    return [];
-  }
-}
-
-function guardarPostulaciones(data) {
-  try {
-    fs.writeFileSync(postulacionesFile, JSON.stringify(data, null, 2), "utf-8");
-  } catch (error) {
-    console.error("❌ Error guardando postulaciones.json:", error);
-  }
-}
+const vacantesFile = path.join(dataDir, "vacantes.json");
 
 /* =========================
-   MULTER
+   DATA BASE INICIAL
 ========================= */
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const timestamp = Date.now();
-    const safeName = file.originalname.replace(/\s+/g, "_");
-    cb(null, `${timestamp}_${safeName}`);
-  }
-});
-
-const fileFilter = (req, file, cb) => {
-  const name = file.originalname.toLowerCase();
-  const isPdf = file.mimetype === "application/pdf" || name.endsWith(".pdf");
-  const isImage =
-    file.mimetype.startsWith("image/") ||
-    name.endsWith(".jpg") ||
-    name.endsWith(".jpeg") ||
-    name.endsWith(".png");
-
-  const isCvField = file.fieldname === "cvFile";
-  const isOptionalDocField = ["ineFile", "curpFile", "domicilioFile"].includes(file.fieldname);
-
-  if (isCvField && !isPdf) {
-    return cb(new Error("El CV debe ser un archivo PDF."));
-  }
-
-  if (isOptionalDocField && !(isPdf || isImage)) {
-    return cb(new Error("Los documentos opcionales deben ser PDF o imagen."));
-  }
-
-  if (!isCvField && !isOptionalDocField) {
-    return cb(new Error("Tipo de archivo no permitido."));
-  }
-
-  cb(null, true);
-};
-
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 8 * 1024 * 1024 }
-});
-
-/* =========================
-   MIDDLEWARES
-========================= */
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
-
-app.use(express.json({ limit: "3mb" }));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
-app.use("/uploads", express.static(uploadsDir));
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-/* =========================
-   DATA EN MEMORIA + ARCHIVO
-========================= */
-let postulaciones = leerPostulaciones();
-
-const ubicaciones = {
-  "México": {
-    "Chihuahua": ["Ciudad Juárez", "Chihuahua"],
-    "Baja California": ["Mexicali"],
-    "Jalisco": ["Guadalajara"]
-  },
-  "Estados Unidos": {
-    "Texas": ["El Paso"]
-  }
-};
-
-const vacantes = [
+const vacantesIniciales = [
   {
     id: "vac-001",
     tipoVacante: "operativa",
@@ -382,6 +284,133 @@ const vacantes = [
   }
 ];
 
+if (!fs.existsSync(vacantesFile)) {
+  fs.writeFileSync(vacantesFile, JSON.stringify(vacantesIniciales, null, 2), "utf-8");
+}
+
+/* =========================
+   HELPERS DE ARCHIVO
+========================= */
+function leerJson(filePath, fallback = []) {
+  try {
+    const raw = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(raw || JSON.stringify(fallback));
+  } catch (error) {
+    console.error(`❌ Error leyendo ${filePath}:`, error);
+    return fallback;
+  }
+}
+
+function guardarJson(filePath, data) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  } catch (error) {
+    console.error(`❌ Error guardando ${filePath}:`, error);
+  }
+}
+
+function leerPostulaciones() {
+  return leerJson(postulacionesFile, []);
+}
+
+function guardarPostulaciones(data) {
+  guardarJson(postulacionesFile, data);
+}
+
+function leerVacantes() {
+  return leerJson(vacantesFile, vacantesIniciales);
+}
+
+function guardarVacantes(data) {
+  guardarJson(vacantesFile, data);
+}
+
+/* =========================
+   MULTER
+========================= */
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const safeName = file.originalname.replace(/\s+/g, "_");
+    cb(null, `${timestamp}_${safeName}`);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  const name = file.originalname.toLowerCase();
+  const isPdf = file.mimetype === "application/pdf" || name.endsWith(".pdf");
+  const isImage =
+    file.mimetype.startsWith("image/") ||
+    name.endsWith(".jpg") ||
+    name.endsWith(".jpeg") ||
+    name.endsWith(".png");
+
+  const isCvField = file.fieldname === "cvFile";
+  const isOptionalDocField = ["ineFile", "curpFile", "domicilioFile"].includes(file.fieldname);
+
+  if (isCvField && !isPdf) {
+    return cb(new Error("El CV debe ser un archivo PDF."));
+  }
+
+  if (isOptionalDocField && !(isPdf || isImage)) {
+    return cb(new Error("Los documentos opcionales deben ser PDF o imagen."));
+  }
+
+  if (!isCvField && !isOptionalDocField) {
+    return cb(new Error("Tipo de archivo no permitido."));
+  }
+
+  cb(null, true);
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 8 * 1024 * 1024 }
+});
+
+/* =========================
+   MIDDLEWARES
+========================= */
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+app.use(express.json({ limit: "3mb" }));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(__dirname));
+app.use("/uploads", express.static(uploadsDir));
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+/* =========================
+   DATA EN MEMORIA + ARCHIVO
+========================= */
+let postulaciones = leerPostulaciones();
+let vacantes = leerVacantes();
+
+const ubicaciones = {
+  "México": {
+    "Chihuahua": ["Ciudad Juárez", "Chihuahua"],
+    "Baja California": ["Mexicali"],
+    "Jalisco": ["Guadalajara"]
+  },
+  "Estados Unidos": {
+    "Texas": ["El Paso"]
+  }
+};
+
 /* =========================
    HELPERS
 ========================= */
@@ -399,21 +428,37 @@ function sugerirVacantesBasicas(texto = "", tipoVacante = "") {
       let score = 0;
       const full = `${v.titulo} ${v.area} ${v.requisitos.join(" ")}`.toLowerCase();
 
-      ["cliente", "caja", "cocina", "sushi", "soporte", "sistemas", "excel", "contabilidad", "mercadotecnia", "reclutamiento"].forEach((k) => {
+      [
+        "cliente",
+        "caja",
+        "cocina",
+        "sushi",
+        "soporte",
+        "sistemas",
+        "excel",
+        "contabilidad",
+        "mercadotecnia",
+        "reclutamiento",
+        "ventas",
+        "administracion",
+        "administrativo",
+        "servicio"
+      ].forEach((k) => {
         if (lower.includes(k) && full.includes(k)) score += 20;
       });
 
       if (lower.includes(v.area.toLowerCase())) score += 25;
       if (lower.includes(v.titulo.toLowerCase())) score += 25;
+      if (lower.includes(v.grupo.toLowerCase())) score += 15;
 
       return { ...v, score };
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
+    .slice(0, 5);
 }
 
 function limpiarJsonRespuesta(texto = "") {
-  return texto
+  return String(texto)
     .replace(/```json/gi, "")
     .replace(/```/g, "")
     .trim();
@@ -514,6 +559,76 @@ function resolverGrupo(valor = "") {
   return valor;
 }
 
+async function extraerTextoPdf(filePath) {
+  try {
+    const pdfBuffer = fs.readFileSync(filePath);
+    const parsed = await pdfParse(pdfBuffer);
+    return parsed?.text || "";
+  } catch (error) {
+    console.error("❌ Error extrayendo texto del PDF:", error);
+    return "";
+  }
+}
+
+async function analizarCvConIA(cvTexto = "", contextoExtra = "") {
+  if (!cvTexto.trim()) {
+    return {
+      resumen: "No fue posible analizar el CV.",
+      habilidadesDetectadas: [],
+      perfilRecomendado: "",
+      observaciones: "",
+      palabrasClave: []
+    };
+  }
+
+  try {
+    const analisisPrompt = `
+Analiza este CV para reclutamiento y devuelve JSON válido con esta estructura exacta:
+{
+  "resumen": "resumen profesional breve",
+  "habilidadesDetectadas": ["..."],
+  "perfilRecomendado": "operativo o administrativo",
+  "observaciones": "...",
+  "palabrasClave": ["..."]
+}
+
+Contexto adicional:
+${contextoExtra || "Sin contexto adicional."}
+
+CV:
+${cvTexto.slice(0, 12000)}
+`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-5-mini",
+      messages: [
+        { role: "system", content: "Responde solo JSON válido, sin texto extra." },
+        { role: "user", content: analisisPrompt }
+      ]
+    });
+
+    const content = completion.choices?.[0]?.message?.content || "{}";
+    const parsed = JSON.parse(limpiarJsonRespuesta(content));
+
+    return {
+      resumen: parsed.resumen || "CV recibido correctamente.",
+      habilidadesDetectadas: Array.isArray(parsed.habilidadesDetectadas) ? parsed.habilidadesDetectadas : [],
+      perfilRecomendado: parsed.perfilRecomendado || "",
+      observaciones: parsed.observaciones || "",
+      palabrasClave: Array.isArray(parsed.palabrasClave) ? parsed.palabrasClave : []
+    };
+  } catch (error) {
+    console.error("❌ Error en análisis IA del CV:", error);
+    return {
+      resumen: "CV recibido correctamente. El análisis automático no estuvo disponible en este momento.",
+      habilidadesDetectadas: [],
+      perfilRecomendado: "",
+      observaciones: "",
+      palabrasClave: []
+    };
+  }
+}
+
 /* =========================
    RUTAS
 ========================= */
@@ -530,6 +645,8 @@ app.get("/api/ubicaciones", (req, res) => {
 });
 
 app.get("/api/vacantes", (req, res) => {
+  vacantes = leerVacantes();
+
   const tipoVacante = req.query.tipoVacante ? normalizarTexto(req.query.tipoVacante) : "";
   const pais = req.query.pais ? normalizarTexto(resolverPais(req.query.pais)) : "";
   const estado = req.query.estado ? normalizarTexto(resolverEstado(req.query.estado)) : "";
@@ -556,21 +673,78 @@ app.get("/api/vacantes", (req, res) => {
 });
 
 app.get("/api/grupos", (req, res) => {
+  vacantes = leerVacantes();
+
   const { tipoVacante } = req.query;
   if (!tipoVacante) {
     return res.status(400).json({ error: "tipoVacante es obligatorio" });
   }
+
   res.json(obtenerGruposPorTipo(tipoVacante));
 });
 
 app.get("/api/postulacion/:id", (req, res) => {
+  postulaciones = leerPostulaciones();
+
   const item = postulaciones.find((p) => p.id === req.params.id);
   if (!item) {
     return res.status(404).json({ error: "Postulación no encontrada" });
   }
+
   res.json(item);
 });
 
+/* =========================
+   ANÁLISIS ATS SOLO CV
+========================= */
+app.post(
+  "/api/analizar-cv",
+  upload.fields([{ name: "cvFile", maxCount: 1 }]),
+  async (req, res) => {
+    try {
+      const cvFile = req.files?.cvFile?.[0];
+
+      if (!cvFile) {
+        return res.status(400).json({ error: "Debes adjuntar tu CV en PDF." });
+      }
+
+      const cvTexto = await extraerTextoPdf(cvFile.path);
+      const analisisIA = await analizarCvConIA(cvTexto, "Analizar CV para sugerir vacantes.");
+      const sugerenciasIA = sugerirVacantesBasicas(
+        `${cvTexto} ${(analisisIA.habilidadesDetectadas || []).join(" ")} ${(analisisIA.palabrasClave || []).join(" ")}`,
+        analisisIA.perfilRecomendado === "administrativo"
+          ? "administrativa"
+          : analisisIA.perfilRecomendado === "operativo"
+            ? "operativa"
+            : ""
+      );
+
+      res.json({
+        ok: true,
+        message: "CV analizado correctamente.",
+        analisis: {
+          cvNombre: cvFile.originalname,
+          cvRuta: `/uploads/${cvFile.filename}`,
+          cvTexto,
+          resumenIA: analisisIA.resumen,
+          habilidadesDetectadas: analisisIA.habilidadesDetectadas,
+          perfilRecomendado: analisisIA.perfilRecomendado,
+          observaciones: analisisIA.observaciones,
+          sugerenciasIA
+        }
+      });
+    } catch (error) {
+      console.error("❌ Error analizando CV:", error);
+      res.status(500).json({
+        error: "No fue posible analizar el CV."
+      });
+    }
+  }
+);
+
+/* =========================
+   POSTULACIÓN REAL
+========================= */
 app.post(
   "/api/postulacion",
   upload.fields([
@@ -581,6 +755,9 @@ app.post(
   ]),
   async (req, res) => {
     try {
+      postulaciones = leerPostulaciones();
+      vacantes = leerVacantes();
+
       const {
         nombre,
         correo,
@@ -599,7 +776,17 @@ app.post(
         habilidades
       } = req.body;
 
-      if (!nombre || !correo || !telefono || !pais || !estado || !ciudad || !tipoVacante || !grupoSeleccionado || !vacanteSeleccionada) {
+      if (
+        !nombre ||
+        !correo ||
+        !telefono ||
+        !pais ||
+        !estado ||
+        !ciudad ||
+        !tipoVacante ||
+        !grupoSeleccionado ||
+        !vacanteSeleccionada
+      ) {
         return res.status(400).json({ error: "Faltan campos obligatorios." });
       }
 
@@ -613,51 +800,16 @@ app.post(
         return res.status(400).json({ error: "La vacante seleccionada no existe." });
       }
 
-      let cvTexto = "";
-      try {
-        const pdfBuffer = fs.readFileSync(cvFile.path);
-        const parsed = await pdfParse(pdfBuffer);
-        cvTexto = parsed.text || "";
-      } catch {
-        cvTexto = "";
-      }
-
-      let resumenIA = "No fue posible analizar el CV.";
-      const sugerenciasIA = sugerirVacantesBasicas(
-        `${puestoInteres} ${experiencia} ${habilidades} ${cvTexto}`,
-        tipoVacante
+      const cvTexto = await extraerTextoPdf(cvFile.path);
+      const analisisIA = await analizarCvConIA(
+        cvTexto,
+        `Vacante elegida: ${vacante.titulo} | Grupo: ${vacante.grupo} | Tipo: ${vacante.tipoVacante}`
       );
 
-      if (cvTexto.trim()) {
-        try {
-          const analisisPrompt = `
-Analiza este CV para reclutamiento y devuelve JSON válido con esta estructura:
-{
-  "resumen": "resumen profesional breve",
-  "habilidadesDetectadas": ["..."],
-  "perfilRecomendado": "operativo o administrativo",
-  "observaciones": "..."
-}
-
-CV:
-${cvTexto.slice(0, 12000)}
-`;
-
-          const completion = await openai.chat.completions.create({
-            model: "gpt-5-mini",
-            messages: [
-              { role: "system", content: "Responde solo JSON válido." },
-              { role: "user", content: analisisPrompt }
-            ]
-          });
-
-          const content = completion.choices?.[0]?.message?.content || "{}";
-          const parsed = JSON.parse(limpiarJsonRespuesta(content));
-          resumenIA = parsed.resumen || resumenIA;
-        } catch {
-          resumenIA = "CV recibido correctamente. El análisis automático no estuvo disponible en este momento.";
-        }
-      }
+      const sugerenciasIA = sugerirVacantesBasicas(
+        `${puestoInteres || ""} ${experiencia || ""} ${habilidades || ""} ${cvTexto} ${(analisisIA.habilidadesDetectadas || []).join(" ")} ${(analisisIA.palabrasClave || []).join(" ")}`,
+        tipoVacante
+      );
 
       const documentos = [];
       ["ineFile", "curpFile", "domicilioFile"].forEach((key) => {
@@ -692,7 +844,10 @@ ${cvTexto.slice(0, 12000)}
         cvNombre: cvFile.originalname,
         cvRuta: `/uploads/${cvFile.filename}`,
         cvTexto,
-        resumenIA,
+        resumenIA: analisisIA.resumen,
+        habilidadesDetectadas: analisisIA.habilidadesDetectadas,
+        perfilRecomendado: analisisIA.perfilRecomendado,
+        observacionesIA: analisisIA.observaciones,
         sugerenciasIA,
         documentos,
         estadoSolicitud: "pendiente",
@@ -733,7 +888,6 @@ app.patch("/api/postulaciones/:id/estado", (req, res) => {
   postulaciones = leerPostulaciones();
 
   const postulacion = postulaciones.find((p) => p.id === id);
-
   if (!postulacion) {
     return res.status(404).json({ error: "Postulación no encontrada." });
   }
@@ -752,6 +906,8 @@ app.patch("/api/postulaciones/:id/estado", (req, res) => {
    CRUD VACANTES
 ========================= */
 app.post("/api/vacantes", (req, res) => {
+  vacantes = leerVacantes();
+
   const {
     tipoVacante,
     grupo,
@@ -793,6 +949,7 @@ app.post("/api/vacantes", (req, res) => {
   };
 
   vacantes.push(nuevaVacante);
+  guardarVacantes(vacantes);
 
   res.json({
     ok: true,
@@ -802,6 +959,8 @@ app.post("/api/vacantes", (req, res) => {
 });
 
 app.put("/api/vacantes/:id", (req, res) => {
+  vacantes = leerVacantes();
+
   const { id } = req.params;
   const index = vacantes.findIndex((v) => v.id === id);
 
@@ -849,6 +1008,8 @@ app.put("/api/vacantes/:id", (req, res) => {
     requisitos
   };
 
+  guardarVacantes(vacantes);
+
   res.json({
     ok: true,
     message: "Vacante actualizada correctamente.",
@@ -857,6 +1018,8 @@ app.put("/api/vacantes/:id", (req, res) => {
 });
 
 app.delete("/api/vacantes/:id", (req, res) => {
+  vacantes = leerVacantes();
+
   const { id } = req.params;
   const index = vacantes.findIndex((v) => v.id === id);
 
@@ -865,6 +1028,7 @@ app.delete("/api/vacantes/:id", (req, res) => {
   }
 
   const eliminada = vacantes.splice(index, 1)[0];
+  guardarVacantes(vacantes);
 
   res.json({
     ok: true,
@@ -873,6 +1037,9 @@ app.delete("/api/vacantes/:id", (req, res) => {
   });
 });
 
+/* =========================
+   CHAT
+========================= */
 app.post("/chat", async (req, res) => {
   try {
     const { messages, candidateProfile } = req.body;
@@ -973,13 +1140,18 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
+/* =========================
+   ERRORES
+========================= */
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ error: err.message });
   }
+
   if (err) {
     return res.status(400).json({ error: err.message || "Error procesando la solicitud" });
   }
+
   next();
 });
 
