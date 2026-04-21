@@ -847,9 +847,6 @@ app.post(
   "/api/postulacion",
   upload.fields([
     { name: "cvFile", maxCount: 1 },
-    { name: "ineFile", maxCount: 1 },
-    { name: "curpFile", maxCount: 1 },
-    { name: "domicilioFile", maxCount: 1 }
   ]),
   async (req, res) => {
     try {

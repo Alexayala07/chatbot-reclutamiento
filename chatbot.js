@@ -24,14 +24,7 @@ const startApplicationBtnSecondary = document.getElementById("startApplicationBt
 const attachCvBtn = document.getElementById("attachCvBtn");
 const chatCvFile = document.getElementById("chatCvFile");
 
-const attachIneBtn = document.getElementById("attachIneBtn");
-const chatIneFile = document.getElementById("chatIneFile");
-
-const attachCurpBtn = document.getElementById("attachCurpBtn");
-const chatCurpFile = document.getElementById("chatCurpFile");
-
-const attachDomicilioBtn = document.getElementById("attachDomicilioBtn");
-const chatDomicilioFile = document.getElementById("chatDomicilioFile");
+const chatbotToggle = document.getElementById("chatbot-toggle");
 
 let ubicaciones = {};
 let vacantesData = [];
@@ -83,6 +76,19 @@ const chatHistory = [
     ]
   }
 ];
+
+/* =========================
+   ESTADO BURBUJA 3D
+========================= */
+function activateListeningState() {
+  if (!chatbotToggle) return;
+  chatbotToggle.classList.add("is-listening");
+}
+
+function deactivateListeningState() {
+  if (!chatbotToggle) return;
+  chatbotToggle.classList.remove("is-listening");
+}
 
 /* =========================
    NORMALIZACIÓN Y ALIAS
@@ -328,12 +334,14 @@ function renderMessages() {
 function openChat() {
   if (!box) return;
   box.classList.remove("hidden");
+  activateListeningState();
   if (input) input.focus();
 }
 
 function closeChat() {
   if (!box) return;
   box.classList.add("hidden");
+  deactivateListeningState();
 }
 
 async function sendMessageToBot(userText) {
@@ -949,38 +957,8 @@ if (attachCvBtn && chatCvFile) {
       addAssistantText("✅ CV cargado correctamente.");
       await processCvAnalysisOnly();
     } else {
-      addAssistantText("✅ CV cargado correctamente. Si deseas, ahora puedes adjuntar INE, CURP o comprobante de domicilio. Si no, escribe 'continuar' para enviar tu postulación.");
+      addAssistantText("✅ CV cargado correctamente. Escribe 'continuar' para enviar tu postulación.");
     }
-  });
-}
-
-if (attachIneBtn && chatIneFile) {
-  attachIneBtn.addEventListener("click", () => chatIneFile.click());
-  chatIneFile.addEventListener("change", () => {
-    const file = chatIneFile.files?.[0];
-    if (!file) return;
-    applicationFlow.ineFile = file;
-    addAssistantText("✅ INE cargado correctamente.");
-  });
-}
-
-if (attachCurpBtn && chatCurpFile) {
-  attachCurpBtn.addEventListener("click", () => chatCurpFile.click());
-  chatCurpFile.addEventListener("change", () => {
-    const file = chatCurpFile.files?.[0];
-    if (!file) return;
-    applicationFlow.curpFile = file;
-    addAssistantText("✅ CURP cargado correctamente.");
-  });
-}
-
-if (attachDomicilioBtn && chatDomicilioFile) {
-  attachDomicilioBtn.addEventListener("click", () => chatDomicilioFile.click());
-  chatDomicilioFile.addEventListener("change", () => {
-    const file = chatDomicilioFile.files?.[0];
-    if (!file) return;
-    applicationFlow.domicilioFile = file;
-    addAssistantText("✅ Comprobante de domicilio cargado correctamente.");
   });
 }
 

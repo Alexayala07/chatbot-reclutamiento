@@ -123,7 +123,15 @@
     </section>
   </main>
 
-  <button id="chatbot-toggle" class="chatbot-toggle" aria-label="Abrir chat">💬</button>
+  <button id="chatbot-toggle" class="chatbot-toggle" aria-label="Abrir chat">
+    <span class="chatbot-toggle__ring"></span>
+    <span class="chatbot-toggle__ring chatbot-toggle__ring--delay"></span>
+    <span class="chatbot-toggle__core">
+      <img src="/img/icons8-chatgpt-32.png" alt="Asistente" class="chatbot-toggle__img" />
+    </span>
+    <span class="chatbot-toggle__status"></span>
+  </button>
+
 
   <aside id="chatbot-box" class="chatbot-box hidden">
     <div class="chatbot-header">
@@ -141,22 +149,8 @@
         Adjuntar CV PDF
       </button>
       <input id="chatCvFile" type="file" accept=".pdf,application/pdf" hidden />
-
-      <button id="attachIneBtn" type="button" class="btn btn--secondary">
-        Adjuntar INE
-      </button>
-      <input id="chatIneFile" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" hidden />
-
-      <button id="attachCurpBtn" type="button" class="btn btn--secondary">
-        Adjuntar CURP
-      </button>
-      <input id="chatCurpFile" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" hidden />
-
-      <button id="attachDomicilioBtn" type="button" class="btn btn--secondary">
-        Adjuntar domicilio
-      </button>
-      <input id="chatDomicilioFile" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" hidden />
     </div>
+    
 
     <form id="chatbot-form" class="chatbot-form">
       <input id="chatbot-input" type="text" placeholder="Escribe tu respuesta..." autocomplete="off" />
