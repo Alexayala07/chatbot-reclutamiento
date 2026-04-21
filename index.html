@@ -126,12 +126,13 @@
   <button id="chatbot-toggle" class="chatbot-toggle" aria-label="Abrir chat">
     <span class="chatbot-toggle__ring"></span>
     <span class="chatbot-toggle__ring chatbot-toggle__ring--delay"></span>
+
     <span class="chatbot-toggle__core">
       <img src="/img/icons8-chatgpt-32.png" alt="Asistente" class="chatbot-toggle__img" />
     </span>
+
     <span class="chatbot-toggle__status"></span>
   </button>
-
 
   <aside id="chatbot-box" class="chatbot-box hidden">
     <div class="chatbot-header">
@@ -150,10 +151,14 @@
       </button>
       <input id="chatCvFile" type="file" accept=".pdf,application/pdf" hidden />
     </div>
-    
 
     <form id="chatbot-form" class="chatbot-form">
-      <input id="chatbot-input" type="text" placeholder="Escribe tu respuesta..." autocomplete="off" />
+      <input
+        id="chatbot-input"
+        type="text"
+        placeholder="Escribe tu respuesta..."
+        autocomplete="off"
+      />
       <button id="chatbot-send" type="submit">Enviar</button>
     </form>
   </aside>

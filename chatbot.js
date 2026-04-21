@@ -26,6 +26,16 @@ const chatCvFile = document.getElementById("chatCvFile");
 
 const chatbotToggle = document.getElementById("chatbot-toggle");
 
+const BRAND_IMAGES = {
+  "applebee's": "/img/Applebees.png",
+  "ardeo": "/img/ardeo.png",
+  "ga hospitality": "/img/gaho.png",
+  "great american": "/img/greatamerican.png",
+  "little caesars": "/img/littlecaesars.jpg",
+  "wendy's": "/img/wendys.png",
+  "yoko": "/img/yoko.png"
+};
+
 let ubicaciones = {};
 let vacantesData = [];
 let isAnalyzingCv = false;
@@ -220,6 +230,25 @@ function resolveGrupo(value = "", tipoVacante = "") {
   return value;
 }
 
+function getBrandImage(grupo = "", tipoVacante = "") {
+  const normalizedGrupo = normalizeText(grupo);
+  const normalizedTipo = normalizeText(tipoVacante);
+
+  if (normalizedTipo === "administrativa") {
+    return BRAND_IMAGES["ga hospitality"];
+  }
+
+  if (normalizedGrupo.includes("applebee")) return BRAND_IMAGES["applebee's"];
+  if (normalizedGrupo.includes("ardeo")) return BRAND_IMAGES["ardeo"];
+  if (normalizedGrupo.includes("great american")) return BRAND_IMAGES["great american"];
+  if (normalizedGrupo.includes("little caesar")) return BRAND_IMAGES["little caesars"];
+  if (normalizedGrupo.includes("wendy")) return BRAND_IMAGES["wendy's"];
+  if (normalizedGrupo.includes("yoko")) return BRAND_IMAGES["yoko"];
+  if (normalizedGrupo.includes("ga hospitality")) return BRAND_IMAGES["ga hospitality"];
+
+  return BRAND_IMAGES["ga hospitality"];
+}
+
 /* =========================
    HELPERS
 ========================= */
@@ -298,6 +327,14 @@ function renderMessages() {
         card.className = "chat-vacancy-card";
 
         card.innerHTML = `
+          <div class="chat-vacancy-card__brand">
+            <img
+              src="${getBrandImage(vacante.grupo, vacante.tipoVacante)}"
+              alt="${vacante.grupo}"
+              class="chat-vacancy-card__brand-img"
+              onerror="this.src='/img/gaho.png'"
+            />
+          </div>
           <h4>${vacante.titulo}</h4>
           <p><strong>${vacante.grupo}</strong></p>
           <p>${vacante.area}</p>
@@ -601,21 +638,36 @@ async function cargarVacantesVista() {
   }
 
   vacantesData.forEach((vacante) => {
+    const brandImage = getBrandImage(vacante.grupo, vacante.tipoVacante);
+
     const card = document.createElement("article");
     card.className = "vacante-card";
     card.innerHTML = `
-      <h3>${vacante.titulo}</h3>
-      <p><strong>Tipo:</strong> ${vacante.tipoVacante}</p>
-      <p><strong>Grupo:</strong> ${vacante.grupo}</p>
-      <p><strong>Área:</strong> ${vacante.area}</p>
-      <p><strong>Ubicación:</strong> ${vacante.pais} / ${vacante.estado} / ${vacante.ciudad}</p>
-      <p><strong>Sucursal:</strong> ${vacante.sucursal}</p>
-      <div class="tags">
-        ${vacante.requisitos.map((req) => `<span>${req}</span>`).join("")}
+      <div class="vacante-card__brand">
+        <img
+          src="${brandImage}"
+          alt="${vacante.grupo}"
+          class="vacante-card__brand-img"
+          onerror="this.src='/img/gaho.png'"
+        />
       </div>
-      <button class="btn btn--secondary interes-btn" data-id="${vacante.id}">
-        Me interesa
-      </button>
+
+      <div class="vacante-card__body">
+        <h3>${vacante.titulo}</h3>
+        <p><strong>Tipo:</strong> ${vacante.tipoVacante}</p>
+        <p><strong>Grupo:</strong> ${vacante.grupo}</p>
+        <p><strong>Área:</strong> ${vacante.area}</p>
+        <p><strong>Ubicación:</strong> ${vacante.pais} / ${vacante.estado} / ${vacante.ciudad}</p>
+        <p><strong>Sucursal:</strong> ${vacante.sucursal}</p>
+
+        <div class="tags">
+          ${vacante.requisitos.map((req) => `<span>${req}</span>`).join("")}
+        </div>
+
+        <button class="btn btn--secondary interes-btn" data-id="${vacante.id}">
+          Me interesa
+        </button>
+      </div>
     `;
     vacantesList.appendChild(card);
   });
