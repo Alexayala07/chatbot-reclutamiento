@@ -35,6 +35,7 @@ const chatDomicilioFile = document.getElementById("chatDomicilioFile");
 
 let ubicaciones = {};
 let vacantesData = [];
+let isAnalyzingCv = false;
 
 let applicationFlow = {
   active: false,
@@ -469,7 +470,7 @@ function startCvAnalysisFlow() {
   };
 
   openChat();
-  addAssistantText("Perfecto. Vamos a analizar tu CV. Usa el botón 'Adjuntar CV PDF' para cargarlo y después escribe 'analizar'.");
+  addAssistantText("Perfecto. Vamos a revisar tu perfil. Adjunta tu CV en PDF y lo analizaré automáticamente.");
 }
 
 async function processCvAnalysisOnly() {
@@ -477,6 +478,11 @@ async function processCvAnalysisOnly() {
     addAssistantText("⚠️ Primero debes adjuntar tu CV en formato PDF.");
     return;
   }
+
+  if (isAnalyzingCv) return;
+  isAnalyzingCv = true;
+
+  addAssistantText("⏳ Analizando CV y buscando vacantes relacionadas...");
 
   const formData = new FormData();
   formData.append("cvFile", applicationFlow.cvFile);
@@ -505,7 +511,7 @@ async function processCvAnalysisOnly() {
       chatHistory.push({
         role: "assistant",
         type: "vacancies",
-        content: "Estas son las vacantes que mejor podrían adaptarse a tu CV:",
+        content: "Estas son las vacantes que mejor podrían adaptarse a tu perfil:",
         vacancies: sugerencias
       });
       renderMessages();
@@ -519,6 +525,8 @@ async function processCvAnalysisOnly() {
   } catch (error) {
     console.error("Error analizando CV:", error);
     addAssistantText(`⚠️ ${error.message}`);
+  } finally {
+    isAnalyzingCv = false;
   }
 }
 
@@ -938,7 +946,8 @@ if (attachCvBtn && chatCvFile) {
     applicationFlow.cvFile = file;
 
     if (applicationFlow.mode === "cv_analysis") {
-      addAssistantText("✅ CV cargado correctamente. Ahora escribe 'analizar' para revisar tu perfil y recomendarte vacantes.");
+      addAssistantText("✅ CV cargado correctamente.");
+      await processCvAnalysisOnly();
     } else {
       addAssistantText("✅ CV cargado correctamente. Si deseas, ahora puedes adjuntar INE, CURP o comprobante de domicilio. Si no, escribe 'continuar' para enviar tu postulación.");
     }
@@ -989,11 +998,6 @@ if (form) {
     if (applicationFlow.active) {
       addUserText(text);
 
-      if (applicationFlow.mode === "cv_analysis" && normalizeText(text) === "analizar") {
-        await processCvAnalysisOnly();
-        return;
-      }
-
       if (applicationFlow.mode === "application" && applicationFlow.step >= 15 && normalizeText(text) === "continuar") {
         await submitApplicationFromChat();
         return;
@@ -1003,6 +1007,8 @@ if (form) {
         await handleApplicationFlow(text);
         return;
       }
+
+      return;
     }
 
     await sendMessageToBot(text);

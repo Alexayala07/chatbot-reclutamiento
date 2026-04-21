@@ -419,44 +419,6 @@ function obtenerGruposPorTipo(tipoVacante) {
   return grupos.sort();
 }
 
-function sugerirVacantesBasicas(texto = "", tipoVacante = "") {
-  const lower = String(texto).toLowerCase();
-
-  return vacantes
-    .filter((v) => !tipoVacante || v.tipoVacante === tipoVacante)
-    .map((v) => {
-      let score = 0;
-      const full = `${v.titulo} ${v.area} ${v.requisitos.join(" ")}`.toLowerCase();
-
-      [
-        "cliente",
-        "caja",
-        "cocina",
-        "sushi",
-        "soporte",
-        "sistemas",
-        "excel",
-        "contabilidad",
-        "mercadotecnia",
-        "reclutamiento",
-        "ventas",
-        "administracion",
-        "administrativo",
-        "servicio"
-      ].forEach((k) => {
-        if (lower.includes(k) && full.includes(k)) score += 20;
-      });
-
-      if (lower.includes(v.area.toLowerCase())) score += 25;
-      if (lower.includes(v.titulo.toLowerCase())) score += 25;
-      if (lower.includes(v.grupo.toLowerCase())) score += 15;
-
-      return { ...v, score };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-}
-
 function limpiarJsonRespuesta(texto = "") {
   return String(texto)
     .replace(/```json/gi, "")
@@ -542,12 +504,12 @@ function resolverGrupo(valor = "") {
     "Yoko": ["yoko"],
     "Little Caesars": ["little caesars", "little", "caesars", "little caesar"],
     "RH": ["rh", "recursos humanos", "reclutamiento"],
-    "Contabilidad": ["contabilidad", "contable"],
-    "Mercadotecnia": ["mercadotecnia", "marketing", "mkt"],
-    "Sistemas": ["sistemas", "soporte", "soporte tecnico", "it"],
-    "Monitoreo": ["monitoreo", "monitorista"],
-    "Proyectos y Construcción": ["proyectos y construccion", "proyectos", "construccion"],
-    "Capital Humano": ["capital humano", "capital", "talento humano"]
+    "Contabilidad": ["contabilidad", "contable", "facturacion", "facturación", "contabilidad general"],
+    "Mercadotecnia": ["mercadotecnia", "marketing", "mkt", "redes sociales", "publicidad", "diseño"],
+    "Sistemas": ["sistemas", "soporte", "soporte tecnico", "it", "informatica", "tecnologia"],
+    "Monitoreo": ["monitoreo", "monitorista", "seguimiento", "cctv"],
+    "Proyectos y Construcción": ["proyectos y construccion", "proyectos", "construccion", "obra", "ingenieria"],
+    "Capital Humano": ["capital humano", "capital", "talento humano", "personal", "nomina", "nómina"]
   };
 
   for (const [oficial, lista] of Object.entries(aliases)) {
@@ -629,6 +591,144 @@ ${cvTexto.slice(0, 12000)}
   }
 }
 
+function obtenerKeywordsVacante(vacante) {
+  const base = [
+    vacante.titulo,
+    vacante.area,
+    vacante.grupo,
+    ...(vacante.requisitos || [])
+  ].map(normalizarTexto);
+
+  const extras = {
+    "vac-001": ["caja", "cobro", "efectivo", "atencion al cliente", "mostrador", "ventas"],
+    "vac-002": ["servicio", "atencion al cliente", "operacion", "despacho", "orden", "rapidez"],
+    "vac-003": ["recepcion", "hostess", "atencion al cliente", "bienvenida", "presentacion"],
+    "vac-004": ["parrilla", "cocina", "alimentos", "restaurante"],
+    "vac-005": ["chef", "linea", "cocina", "alimentos", "produccion"],
+    "vac-006": ["sushi", "cocina", "preparacion", "alimentos"],
+    "vac-007": ["caja", "cobro", "efectivo", "atencion al cliente", "ventas"],
+    "vac-008": ["cocina", "preparacion", "alimentos", "produccion"],
+    "vac-009": ["mesero", "servicio", "atencion al cliente", "ventas", "comensales"],
+    "vac-010": ["caja", "mostrador", "atencion al cliente", "ventas"],
+    "vac-011": ["mesero", "servicio", "atencion al cliente", "ventas", "restaurante"],
+    "vac-012": ["operaciones", "apertura", "restaurante"],
+    "vac-013": ["cocina", "preparacion", "alimentos", "produccion"],
+    "vac-101": ["reclutamiento", "entrevistas", "seleccion", "personal", "rh", "capital humano"],
+    "vac-102": ["contabilidad", "facturacion", "contable", "excel", "administracion", "finanzas", "costos"],
+    "vac-103": ["marketing", "mercadotecnia", "diseño", "redes sociales", "publicidad", "contenido"],
+    "vac-104": ["soporte tecnico", "sistemas", "it", "redes", "hardware", "software", "tickets"],
+    "vac-105": ["monitoreo", "seguimiento", "reportes", "alertas", "control", "cctv", "documentacion"],
+    "vac-106": ["proyectos", "construccion", "obra", "planeacion", "ingenieria", "estimaciones", "logistica"],
+    "vac-107": ["capital humano", "personal", "nomina", "administracion", "rh", "talento"]
+  };
+
+  return [...base, ...(extras[vacante.id] || [])];
+}
+
+function sugerirVacantesInteligentes({
+  cvTexto = "",
+  tipoVacante = "",
+  perfilRecomendado = "",
+  habilidadesDetectadas = [],
+  palabrasClave = []
+}) {
+  vacantes = leerVacantes();
+
+  const textoBase = normalizarTexto(
+    [
+      cvTexto,
+      ...(habilidadesDetectadas || []),
+      ...(palabrasClave || [])
+    ].join(" ")
+  );
+
+  const perfil = normalizarTexto(perfilRecomendado);
+  const quiereAdministrativa =
+    perfil.includes("administrativo") ||
+    perfil.includes("administrativa");
+  const quiereOperativa =
+    perfil.includes("operativo") ||
+    perfil.includes("operativa");
+
+  return vacantes
+    .map((vacante) => {
+      let score = 0;
+      const keywords = obtenerKeywordsVacante(vacante);
+
+      keywords.forEach((kw) => {
+        const token = normalizarTexto(kw);
+        if (token && textoBase.includes(token)) {
+          score += token.split(" ").length >= 2 ? 18 : 10;
+        }
+      });
+
+      if (tipoVacante && vacante.tipoVacante === tipoVacante) {
+        score += 25;
+      }
+
+      if (!tipoVacante && quiereAdministrativa && vacante.tipoVacante === "administrativa") {
+        score += 30;
+      }
+
+      if (!tipoVacante && quiereOperativa && vacante.tipoVacante === "operativa") {
+        score += 30;
+      }
+
+      if (textoBase.includes("logistica") || textoBase.includes("logística")) {
+        if (["Monitoreo", "Proyectos y Construcción", "Contabilidad"].includes(vacante.grupo)) {
+          score += 18;
+        }
+      }
+
+      if (textoBase.includes("aduana") || textoBase.includes("pedimento") || textoBase.includes("importacion") || textoBase.includes("exportacion")) {
+        if (["Monitoreo", "Proyectos y Construcción", "Contabilidad"].includes(vacante.grupo)) {
+          score += 20;
+        }
+      }
+
+      if (textoBase.includes("facturacion") || textoBase.includes("facturación") || textoBase.includes("contabilidad") || textoBase.includes("finanzas")) {
+        if (vacante.grupo === "Contabilidad") score += 35;
+      }
+
+      if (textoBase.includes("reclutamiento") || textoBase.includes("entrevistas") || textoBase.includes("capital humano") || textoBase.includes("rh")) {
+        if (vacante.grupo === "RH" || vacante.grupo === "Capital Humano") score += 35;
+      }
+
+      if (textoBase.includes("soporte") || textoBase.includes("redes") || textoBase.includes("hardware") || textoBase.includes("software") || textoBase.includes("sistemas")) {
+        if (vacante.grupo === "Sistemas") score += 35;
+      }
+
+      if (textoBase.includes("marketing") || textoBase.includes("mercadotecnia") || textoBase.includes("diseño") || textoBase.includes("publicidad") || textoBase.includes("redes sociales")) {
+        if (vacante.grupo === "Mercadotecnia") score += 35;
+      }
+
+      if (textoBase.includes("monitoreo") || textoBase.includes("seguimiento") || textoBase.includes("control documental") || textoBase.includes("reportes")) {
+        if (vacante.grupo === "Monitoreo") score += 28;
+      }
+
+      if (textoBase.includes("atencion al cliente") || textoBase.includes("servicio al cliente")) {
+        if (["Wendy's", "Applebee's", "Great American"].includes(vacante.grupo)) {
+          score += 15;
+        }
+      }
+
+      if (textoBase.includes("cocina") || textoBase.includes("alimentos") || textoBase.includes("chef")) {
+        if (vacante.tipoVacante === "operativa" && ["Ardeo", "Yoko", "Little Caesars", "Great American"].includes(vacante.grupo)) {
+          score += 28;
+        }
+      }
+
+      if (vacante.titulo === "Próximamente") {
+        score -= 25;
+      }
+
+      return { ...vacante, score };
+    })
+    .filter((v) => v.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+}
+
 /* =========================
    RUTAS
 ========================= */
@@ -695,7 +795,7 @@ app.get("/api/postulacion/:id", (req, res) => {
 });
 
 /* =========================
-   ANÁLISIS ATS SOLO CV
+   ANÁLISIS SOLO CV
 ========================= */
 app.post(
   "/api/analizar-cv",
@@ -710,14 +810,12 @@ app.post(
 
       const cvTexto = await extraerTextoPdf(cvFile.path);
       const analisisIA = await analizarCvConIA(cvTexto, "Analizar CV para sugerir vacantes.");
-      const sugerenciasIA = sugerirVacantesBasicas(
-        `${cvTexto} ${(analisisIA.habilidadesDetectadas || []).join(" ")} ${(analisisIA.palabrasClave || []).join(" ")}`,
-        analisisIA.perfilRecomendado === "administrativo"
-          ? "administrativa"
-          : analisisIA.perfilRecomendado === "operativo"
-            ? "operativa"
-            : ""
-      );
+      const sugerenciasIA = sugerirVacantesInteligentes({
+        cvTexto,
+        perfilRecomendado: analisisIA.perfilRecomendado,
+        habilidadesDetectadas: analisisIA.habilidadesDetectadas,
+        palabrasClave: analisisIA.palabrasClave
+      });
 
       res.json({
         ok: true,
@@ -806,10 +904,13 @@ app.post(
         `Vacante elegida: ${vacante.titulo} | Grupo: ${vacante.grupo} | Tipo: ${vacante.tipoVacante}`
       );
 
-      const sugerenciasIA = sugerirVacantesBasicas(
-        `${puestoInteres || ""} ${experiencia || ""} ${habilidades || ""} ${cvTexto} ${(analisisIA.habilidadesDetectadas || []).join(" ")} ${(analisisIA.palabrasClave || []).join(" ")}`,
-        tipoVacante
-      );
+      const sugerenciasIA = sugerirVacantesInteligentes({
+        cvTexto: `${puestoInteres || ""} ${experiencia || ""} ${habilidades || ""} ${cvTexto}`,
+        tipoVacante,
+        perfilRecomendado: analisisIA.perfilRecomendado,
+        habilidadesDetectadas: analisisIA.habilidadesDetectadas,
+        palabrasClave: analisisIA.palabrasClave
+      });
 
       const documentos = [];
       ["ineFile", "curpFile", "domicilioFile"].forEach((key) => {
