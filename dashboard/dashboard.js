@@ -1,8 +1,32 @@
-const API_URL = "https://chatbot-reclutamiento-cl32.onrender.com";
+const API_URL = window.location.origin;
 
+/* =========================
+   FIREBASE AUTH
+========================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyD6t7kfGjBllkzuDVarL7oaECryUa2-fx4",
+  authDomain: "chatbotgpt-2eb38.firebaseapp.com",
+  projectId: "chatbotgpt-2eb38",
+  storageBucket: "chatbotgpt-2eb38.firebasestorage.app",
+  messagingSenderId: "762904867561",
+  appId: "1:762904867561:web:984b481d3c469ccd057678",
+  measurementId: "G-0W817YXQ6T"
+};
+
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+const auth = firebase.auth();
+let adminToken = "";
+
+/* =========================
+   POSTULACIONES
+========================= */
 const postulacionesList = document.getElementById("postulacionesList");
 const dashboardStatus = document.getElementById("dashboardStatus");
 const refreshBtn = document.getElementById("refreshBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
 const statTotal = document.getElementById("statTotal");
 const statPendiente = document.getElementById("statPendiente");
@@ -29,6 +53,9 @@ const rejectBtn = document.getElementById("rejectBtn");
 let postulaciones = [];
 let selectedCandidate = null;
 
+/* =========================
+   HELPERS
+========================= */
 function setStatus(message, show = true) {
   if (!dashboardStatus) return;
   dashboardStatus.textContent = message;
@@ -53,6 +80,16 @@ function getEstadoClass(estado) {
   return "estado estado--pendiente";
 }
 
+function authHeaders(extra = {}) {
+  return {
+    ...extra,
+    Authorization: `Bearer ${adminToken}`
+  };
+}
+
+/* =========================
+   POSTULACIONES
+========================= */
 function updateStats() {
   const total = postulaciones.length;
   const pendientes = postulaciones.filter(p => p.estadoSolicitud === "pendiente").length;
@@ -148,15 +185,20 @@ async function cargarPostulaciones() {
   try {
     setStatus("Cargando postulaciones...");
 
-    const res = await fetch(`${API_URL}/api/postulaciones`);
-    if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
+    const res = await fetch(`${API_URL}/api/postulaciones`, {
+      headers: authHeaders()
+    });
 
-    postulaciones = await res.json();
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || `Error HTTP ${res.status}`);
+
+    postulaciones = data;
     renderPostulaciones();
     setStatus("", false);
   } catch (error) {
     console.error("Error cargando postulaciones:", error);
-    setStatus("⚠️ No fue posible cargar las postulaciones.");
+    setStatus(`⚠️ ${error.message || "No fue posible cargar las postulaciones."}`);
   }
 }
 
@@ -166,9 +208,9 @@ async function actualizarEstado(nuevoEstado) {
   try {
     const res = await fetch(`${API_URL}/api/postulaciones/${selectedCandidate.id}/estado`, {
       method: "PATCH",
-      headers: {
+      headers: authHeaders({
         "Content-Type": "application/json"
-      },
+      }),
       body: JSON.stringify({ estado: nuevoEstado })
     });
 
@@ -184,10 +226,44 @@ async function actualizarEstado(nuevoEstado) {
   }
 }
 
+async function cerrarSesion() {
+  try {
+    await auth.signOut();
+    window.location.href = "/login-admin.html";
+  } catch (error) {
+    console.error("Error cerrando sesión:", error);
+    setStatus("⚠️ No fue posible cerrar sesión.");
+  }
+}
+
+/* =========================
+   EVENTS
+========================= */
 if (refreshBtn) refreshBtn.addEventListener("click", cargarPostulaciones);
+if (logoutBtn) logoutBtn.addEventListener("click", cerrarSesion);
 if (closeModalBtn) closeModalBtn.addEventListener("click", closeCandidateModal);
 if (closeModalBackdrop) closeModalBackdrop.addEventListener("click", closeCandidateModal);
 if (approveBtn) approveBtn.addEventListener("click", () => actualizarEstado("aprobado"));
 if (rejectBtn) rejectBtn.addEventListener("click", () => actualizarEstado("rechazado"));
 
-cargarPostulaciones();
+/* =========================
+   INIT
+========================= */
+async function init() {
+  await cargarPostulaciones();
+}
+
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    window.location.href = "/login-admin.html";
+    return;
+  }
+
+  try {
+    adminToken = await user.getIdToken(true);
+    init();
+  } catch (error) {
+    console.error("Error obteniendo token:", error);
+    window.location.href = "/login-admin.html";
+  }
+});

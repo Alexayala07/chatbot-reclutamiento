@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import admin from "firebase-admin";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 
@@ -17,6 +18,32 @@ const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/* =========================
+   FIREBASE ADMIN
+========================= */
+const firebaseProjectId = process.env.FIREBASE_PROJECT_ID;
+const firebaseClientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+
+if (!admin.apps.length) {
+  if (!firebaseProjectId || !firebaseClientEmail || !firebasePrivateKey) {
+    console.warn("⚠️ Firebase Admin no está completamente configurado en .env");
+  } else {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: firebaseProjectId,
+        clientEmail: firebaseClientEmail,
+        privateKey: firebasePrivateKey
+      })
+    });
+  }
+}
+
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 
 /* =========================
    CARPETAS Y ARCHIVOS
@@ -376,7 +403,7 @@ const upload = multer({
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
@@ -410,6 +437,39 @@ const ubicaciones = {
     "Texas": ["El Paso"]
   }
 };
+
+/* =========================
+   MIDDLEWARE ADMIN
+========================= */
+async function verifyAdmin(req, res, next) {
+  try {
+    if (!admin.apps.length) {
+      return res.status(500).json({ error: "Firebase Admin no está configurado en el servidor." });
+    }
+
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.split("Bearer ")[1]
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "No autorizado. Falta token." });
+    }
+
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const userEmail = String(decodedToken.email || "").toLowerCase();
+
+    if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
+      return res.status(403).json({ error: "Acceso denegado. Usuario no autorizado." });
+    }
+
+    req.adminUser = decodedToken;
+    next();
+  } catch (error) {
+    console.error("❌ Error validando admin:", error);
+    return res.status(401).json({ error: "Token inválido o expirado." });
+  }
+}
 
 /* =========================
    HELPERS
@@ -504,12 +564,12 @@ function resolverGrupo(valor = "") {
     "Yoko": ["yoko"],
     "Little Caesars": ["little caesars", "little", "caesars", "little caesar"],
     "RH": ["rh", "recursos humanos", "reclutamiento"],
-    "Contabilidad": ["contabilidad", "contable", "facturacion", "facturación", "contabilidad general"],
-    "Mercadotecnia": ["mercadotecnia", "marketing", "mkt", "redes sociales", "publicidad", "diseño"],
-    "Sistemas": ["sistemas", "soporte", "soporte tecnico", "it", "informatica", "tecnologia"],
-    "Monitoreo": ["monitoreo", "monitorista", "seguimiento", "cctv"],
-    "Proyectos y Construcción": ["proyectos y construccion", "proyectos", "construccion", "obra", "ingenieria"],
-    "Capital Humano": ["capital humano", "capital", "talento humano", "personal", "nomina", "nómina"]
+    "Contabilidad": ["contabilidad", "contable"],
+    "Mercadotecnia": ["mercadotecnia", "marketing", "mkt"],
+    "Sistemas": ["sistemas", "soporte", "soporte tecnico", "it"],
+    "Monitoreo": ["monitoreo", "monitorista"],
+    "Proyectos y Construcción": ["proyectos y construccion", "proyectos", "construccion"],
+    "Capital Humano": ["capital humano", "capital", "talento humano"]
   };
 
   for (const [oficial, lista] of Object.entries(aliases)) {
@@ -591,99 +651,37 @@ ${cvTexto.slice(0, 12000)}
   }
 }
 
-function obtenerKeywordsVacante(vacante) {
-  const base = [
-    vacante.titulo,
-    vacante.area,
-    vacante.grupo,
-    ...(vacante.requisitos || [])
-  ].map(normalizarTexto);
-
-  const extras = {
-    "vac-001": ["caja", "cobro", "efectivo", "atencion al cliente", "mostrador", "ventas"],
-    "vac-002": ["servicio", "atencion al cliente", "operacion", "despacho", "orden", "rapidez"],
-    "vac-003": ["recepcion", "hostess", "atencion al cliente", "bienvenida", "presentacion"],
-    "vac-004": ["parrilla", "cocina", "alimentos", "restaurante"],
-    "vac-005": ["chef", "linea", "cocina", "alimentos", "produccion"],
-    "vac-006": ["sushi", "cocina", "preparacion", "alimentos"],
-    "vac-007": ["caja", "cobro", "efectivo", "atencion al cliente", "ventas"],
-    "vac-008": ["cocina", "preparacion", "alimentos", "produccion"],
-    "vac-009": ["mesero", "servicio", "atencion al cliente", "ventas", "comensales"],
-    "vac-010": ["caja", "mostrador", "atencion al cliente", "ventas"],
-    "vac-011": ["mesero", "servicio", "atencion al cliente", "ventas", "restaurante"],
-    "vac-012": ["operaciones", "apertura", "restaurante"],
-    "vac-013": ["cocina", "preparacion", "alimentos", "produccion"],
-    "vac-101": ["reclutamiento", "entrevistas", "seleccion", "personal", "rh", "capital humano"],
-    "vac-102": ["contabilidad", "facturacion", "contable", "excel", "administracion", "finanzas", "costos"],
-    "vac-103": ["marketing", "mercadotecnia", "diseño", "redes sociales", "publicidad", "contenido"],
-    "vac-104": ["soporte tecnico", "sistemas", "it", "redes", "hardware", "software", "tickets"],
-    "vac-105": ["monitoreo", "seguimiento", "reportes", "alertas", "control", "cctv", "documentacion"],
-    "vac-106": ["proyectos", "construccion", "obra", "planeacion", "ingenieria", "estimaciones", "logistica"],
-    "vac-107": ["capital humano", "personal", "nomina", "administracion", "rh", "talento"]
-  };
-
-  return [...base, ...(extras[vacante.id] || [])];
-}
-
 function sugerirVacantesInteligentes({
   cvTexto = "",
-  tipoVacante = "",
   perfilRecomendado = "",
   habilidadesDetectadas = [],
   palabrasClave = []
 }) {
-  vacantes = leerVacantes();
-
-  const textoBase = normalizarTexto(
-    [
-      cvTexto,
-      ...(habilidadesDetectadas || []),
-      ...(palabrasClave || [])
-    ].join(" ")
-  );
-
-  const perfil = normalizarTexto(perfilRecomendado);
-  const quiereAdministrativa =
-    perfil.includes("administrativo") ||
-    perfil.includes("administrativa");
-  const quiereOperativa =
-    perfil.includes("operativo") ||
-    perfil.includes("operativa");
+  const textoBase = `
+    ${cvTexto}
+    ${perfilRecomendado}
+    ${(habilidadesDetectadas || []).join(" ")}
+    ${(palabrasClave || []).join(" ")}
+  `.toLowerCase();
 
   return vacantes
     .map((vacante) => {
       let score = 0;
-      const keywords = obtenerKeywordsVacante(vacante);
 
-      keywords.forEach((kw) => {
-        const token = normalizarTexto(kw);
-        if (token && textoBase.includes(token)) {
-          score += token.split(" ").length >= 2 ? 18 : 10;
-        }
-      });
+      const titulo = String(vacante.titulo || "").toLowerCase();
+      const area = String(vacante.area || "").toLowerCase();
+      const grupo = String(vacante.grupo || "").toLowerCase();
+      const requisitos = Array.isArray(vacante.requisitos)
+        ? vacante.requisitos.join(" ").toLowerCase()
+        : "";
 
-      if (tipoVacante && vacante.tipoVacante === tipoVacante) {
-        score += 25;
-      }
+      const contenidoVacante = `${titulo} ${area} ${grupo} ${requisitos}`;
 
-      if (!tipoVacante && quiereAdministrativa && vacante.tipoVacante === "administrativa") {
-        score += 30;
-      }
+      if (perfilRecomendado === "administrativo" && vacante.tipoVacante === "administrativa") score += 30;
+      if (perfilRecomendado === "operativo" && vacante.tipoVacante === "operativa") score += 30;
 
-      if (!tipoVacante && quiereOperativa && vacante.tipoVacante === "operativa") {
-        score += 30;
-      }
-
-      if (textoBase.includes("logistica") || textoBase.includes("logística")) {
-        if (["Monitoreo", "Proyectos y Construcción", "Contabilidad"].includes(vacante.grupo)) {
-          score += 18;
-        }
-      }
-
-      if (textoBase.includes("aduana") || textoBase.includes("pedimento") || textoBase.includes("importacion") || textoBase.includes("exportacion")) {
-        if (["Monitoreo", "Proyectos y Construcción", "Contabilidad"].includes(vacante.grupo)) {
-          score += 20;
-        }
+      if (textoBase.includes("logistica") || textoBase.includes("logística") || textoBase.includes("importacion") || textoBase.includes("importación") || textoBase.includes("exportacion") || textoBase.includes("exportación") || textoBase.includes("aduanas") || textoBase.includes("pedimentos")) {
+        if (vacante.grupo === "Monitoreo" || vacante.grupo === "Proyectos y Construcción") score += 40;
       }
 
       if (textoBase.includes("facturacion") || textoBase.includes("facturación") || textoBase.includes("contabilidad") || textoBase.includes("finanzas")) {
@@ -706,17 +704,31 @@ function sugerirVacantesInteligentes({
         if (vacante.grupo === "Monitoreo") score += 28;
       }
 
-      if (textoBase.includes("atencion al cliente") || textoBase.includes("servicio al cliente")) {
+      if (textoBase.includes("atencion al cliente") || textoBase.includes("atención al cliente") || textoBase.includes("servicio al cliente")) {
         if (["Wendy's", "Applebee's", "Great American"].includes(vacante.grupo)) {
           score += 15;
         }
       }
 
       if (textoBase.includes("cocina") || textoBase.includes("alimentos") || textoBase.includes("chef")) {
-        if (vacante.tipoVacante === "operativa" && ["Ardeo", "Yoko", "Little Caesars", "Great American"].includes(vacante.grupo)) {
+        if (
+          vacante.tipoVacante === "operativa" &&
+          ["Ardeo", "Yoko", "Little Caesars", "Great American"].includes(vacante.grupo)
+        ) {
           score += 28;
         }
       }
+
+      if (titulo && textoBase.includes(titulo)) score += 22;
+      if (area && textoBase.includes(area)) score += 18;
+      if (grupo && textoBase.includes(grupo)) score += 16;
+
+      const palabras = textoBase.split(/\s+/).filter(Boolean);
+      palabras.forEach((palabra) => {
+        if (palabra.length >= 4 && contenidoVacante.includes(palabra)) {
+          score += 2;
+        }
+      });
 
       if (vacante.titulo === "Próximamente") {
         score -= 25;
@@ -742,6 +754,13 @@ app.get("/health", (req, res) => {
 
 app.get("/api/ubicaciones", (req, res) => {
   res.json(ubicaciones);
+});
+
+app.get("/api/admin/session-check", verifyAdmin, (req, res) => {
+  res.json({
+    ok: true,
+    email: req.adminUser.email
+  });
 });
 
 app.get("/api/vacantes", (req, res) => {
@@ -795,7 +814,7 @@ app.get("/api/postulacion/:id", (req, res) => {
 });
 
 /* =========================
-   ANÁLISIS SOLO CV
+   ANÁLISIS ATS SOLO CV
 ========================= */
 app.post(
   "/api/analizar-cv",
@@ -847,6 +866,9 @@ app.post(
   "/api/postulacion",
   upload.fields([
     { name: "cvFile", maxCount: 1 },
+    { name: "ineFile", maxCount: 1 },
+    { name: "curpFile", maxCount: 1 },
+    { name: "domicilioFile", maxCount: 1 }
   ]),
   async (req, res) => {
     try {
@@ -902,9 +924,13 @@ app.post(
       );
 
       const sugerenciasIA = sugerirVacantesInteligentes({
-        cvTexto: `${puestoInteres || ""} ${experiencia || ""} ${habilidades || ""} ${cvTexto}`,
-        tipoVacante,
-        perfilRecomendado: analisisIA.perfilRecomendado,
+        cvTexto: `
+          ${puestoInteres || ""}
+          ${experiencia || ""}
+          ${habilidades || ""}
+          ${cvTexto}
+        `,
+        perfilRecomendado: analisisIA.perfilRecomendado || tipoVacante,
         habilidadesDetectadas: analisisIA.habilidadesDetectadas,
         palabrasClave: analisisIA.palabrasClave
       });
@@ -969,12 +995,15 @@ app.post(
   }
 );
 
-app.get("/api/postulaciones", (req, res) => {
+/* =========================
+   RUTAS PROTEGIDAS ADMIN
+========================= */
+app.get("/api/postulaciones", verifyAdmin, (req, res) => {
   postulaciones = leerPostulaciones();
   res.json(postulaciones);
 });
 
-app.patch("/api/postulaciones/:id/estado", (req, res) => {
+app.patch("/api/postulaciones/:id/estado", verifyAdmin, (req, res) => {
   const { id } = req.params;
   const { estado } = req.body;
   const estadosValidos = ["pendiente", "aprobado", "rechazado"];
@@ -1001,9 +1030,9 @@ app.patch("/api/postulaciones/:id/estado", (req, res) => {
 });
 
 /* =========================
-   CRUD VACANTES
+   CRUD VACANTES PROTEGIDO
 ========================= */
-app.post("/api/vacantes", (req, res) => {
+app.post("/api/vacantes", verifyAdmin, (req, res) => {
   vacantes = leerVacantes();
 
   const {
@@ -1056,7 +1085,7 @@ app.post("/api/vacantes", (req, res) => {
   });
 });
 
-app.put("/api/vacantes/:id", (req, res) => {
+app.put("/api/vacantes/:id", verifyAdmin, (req, res) => {
   vacantes = leerVacantes();
 
   const { id } = req.params;
@@ -1115,7 +1144,7 @@ app.put("/api/vacantes/:id", (req, res) => {
   });
 });
 
-app.delete("/api/vacantes/:id", (req, res) => {
+app.delete("/api/vacantes/:id", verifyAdmin, (req, res) => {
   vacantes = leerVacantes();
 
   const { id } = req.params;
@@ -1234,8 +1263,31 @@ ${profileText}
   }
 });
 
+/* =========================
+   RUTAS HTML
+========================= */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
+});
+
+app.get("/index.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+app.get("/dashboard.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "dashboard.html"));
+});
+
+app.get("/login-admin.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "login-admin.html"));
+});
+
+app.get("/vacantes-admin.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "vacantes-admin.html"));
+});
+
+app.get("/vacantes.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "vacantes.html"));
 });
 
 /* =========================
