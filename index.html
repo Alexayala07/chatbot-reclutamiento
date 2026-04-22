@@ -37,7 +37,7 @@
         <button id="startApplicationBtn" class="btn btn--primary" type="button">
           Analizar mi CV
         </button>
-        <a href="#vacantes" class="btn btn--ghost">Ver vacantes</a>
+        <a href="#busqueda-vacantes" class="btn btn--ghost">Buscar vacantes</a>
       </div>
     </div>
   </header>
@@ -61,13 +61,13 @@
     <section id="vacantes" class="card">
       <div class="section-head">
         <h2>Explorar vacantes</h2>
-        <p>Filtra por tipo, ubicación y marca o departamento.</p>
+        <p>Selecciona tus filtros y consulta las vacantes disponibles en una página separada.</p>
       </div>
 
-      <div class="form-grid">
+      <form id="vacantesSearchForm" class="form-grid">
         <div class="field">
           <label for="filtroTipo">Tipo</label>
-          <select id="filtroTipo">
+          <select id="filtroTipo" name="tipoVacante">
             <option value="">Todos</option>
             <option value="operativa">Operativa / Restaurante</option>
             <option value="administrativa">Administrativa / Corporativo</option>
@@ -76,7 +76,7 @@
 
         <div class="field">
           <label for="filtroPais">País</label>
-          <select id="filtroPais">
+          <select id="filtroPais" name="pais">
             <option value="">Todos</option>
             <option value="México">México</option>
             <option value="Estados Unidos">Estados Unidos</option>
@@ -85,20 +85,24 @@
 
         <div class="field">
           <label for="filtroEstado">Estado</label>
-          <select id="filtroEstado">
+          <select id="filtroEstado" name="estado">
             <option value="">Todos</option>
           </select>
         </div>
 
         <div class="field">
           <label for="filtroCiudad">Ciudad</label>
-          <select id="filtroCiudad">
+          <select id="filtroCiudad" name="ciudad">
             <option value="">Todas</option>
           </select>
         </div>
-      </div>
 
-      <div id="vacantes-list" class="vacantes-grid"></div>
+        <div class="form-actions field--full">
+          <button id="buscarVacantesBtn" type="submit" class="btn btn--primary">
+            Buscar vacantes
+          </button>
+        </div>
+      </form>
     </section>
 
     <section id="estatus" class="card">
@@ -126,11 +130,9 @@
   <button id="chatbot-toggle" class="chatbot-toggle" aria-label="Abrir chat">
     <span class="chatbot-toggle__ring"></span>
     <span class="chatbot-toggle__ring chatbot-toggle__ring--delay"></span>
-
     <span class="chatbot-toggle__core">
       <img src="/img/icons8-chatgpt-32.png" alt="Asistente" class="chatbot-toggle__img" />
     </span>
-
     <span class="chatbot-toggle__status"></span>
   </button>
 
@@ -153,12 +155,7 @@
     </div>
 
     <form id="chatbot-form" class="chatbot-form">
-      <input
-        id="chatbot-input"
-        type="text"
-        placeholder="Escribe tu respuesta..."
-        autocomplete="off"
-      />
+      <input id="chatbot-input" type="text" placeholder="Escribe tu respuesta..." autocomplete="off" />
       <button id="chatbot-send" type="submit">Enviar</button>
     </form>
   </aside>

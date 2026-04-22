@@ -13,6 +13,7 @@ const filtroTipo = document.getElementById("filtroTipo");
 const filtroPais = document.getElementById("filtroPais");
 const filtroEstado = document.getElementById("filtroEstado");
 const filtroCiudad = document.getElementById("filtroCiudad");
+const vacantesSearchForm = document.getElementById("vacantesSearchForm");
 
 const consultarStatusBtn = document.getElementById("consultarStatusBtn");
 const folioConsulta = document.getElementById("folioConsulta");
@@ -45,10 +46,7 @@ let applicationFlow = {
   mode: "",
   step: 0,
   data: {},
-  cvFile: null,
-  ineFile: null,
-  curpFile: null,
-  domicilioFile: null
+  cvFile: null
 };
 
 let candidateProfile = {
@@ -508,10 +506,7 @@ function startCvAnalysisFlow() {
     mode: "cv_analysis",
     step: 100,
     data: {},
-    cvFile: null,
-    ineFile: null,
-    curpFile: null,
-    domicilioFile: null
+    cvFile: null
   };
 
   openChat();
@@ -615,16 +610,16 @@ function llenarCiudades(selectPais, selectEstado, targetCiudad) {
 }
 
 /* =========================
-   VACANTES EN PÁGINA
+   VACANTES EN INDEX
 ========================= */
 async function cargarVacantesVista() {
   if (!vacantesList) return;
 
   const params = new URLSearchParams({
-    tipoVacante: filtroTipo.value,
-    pais: filtroPais.value,
-    estado: filtroEstado.value,
-    ciudad: filtroCiudad.value
+    tipoVacante: filtroTipo?.value || "",
+    pais: filtroPais?.value || "",
+    estado: filtroEstado?.value || "",
+    ciudad: filtroCiudad?.value || ""
   });
 
   const res = await fetch(`${API_URL}/api/vacantes?${params.toString()}`);
@@ -698,10 +693,7 @@ function seleccionarVacanteDesdeChat(vacante) {
       vacanteTitulo: vacante.titulo,
       puestoInteres: vacante.titulo
     },
-    cvFile: null,
-    ineFile: null,
-    curpFile: null,
-    domicilioFile: null
+    cvFile: null
   };
 
   addAssistantText(`Perfecto. Ya registré tu interés en la vacante "${vacante.titulo}" de ${vacante.grupo} en ${vacante.ciudad}. Ahora dime: ¿cuál es tu nombre completo?`);
@@ -744,10 +736,7 @@ function startApplicationFlow() {
     mode: "application",
     step: 1,
     data: {},
-    cvFile: null,
-    ineFile: null,
-    curpFile: null,
-    domicilioFile: null
+    cvFile: null
   };
 
   openChat();
@@ -906,10 +895,6 @@ async function submitApplicationFromChat() {
   formData.append("vacanteSeleccionada", applicationFlow.data.vacanteId);
   formData.append("cvFile", applicationFlow.cvFile);
 
-  if (applicationFlow.ineFile) formData.append("ineFile", applicationFlow.ineFile);
-  if (applicationFlow.curpFile) formData.append("curpFile", applicationFlow.curpFile);
-  if (applicationFlow.domicilioFile) formData.append("domicilioFile", applicationFlow.domicilioFile);
-
   try {
     const response = await fetch(`${API_URL}/api/postulacion`, {
       method: "POST",
@@ -945,6 +930,35 @@ async function submitApplicationFromChat() {
 }
 
 /* =========================
+   INTERÉS DESDE VACANTES.HTML
+========================= */
+async function procesarVacantePreseleccionada() {
+  const params = new URLSearchParams(window.location.search);
+  const interesId = params.get("interes");
+
+  if (!interesId) return;
+
+  try {
+    const res = await fetch(`${API_URL}/api/vacantes`);
+    const vacantes = await res.json();
+
+    if (!Array.isArray(vacantes)) return;
+
+    const vacante = vacantes.find((v) => v.id === interesId);
+    if (!vacante) return;
+
+    setTimeout(() => {
+      seleccionarVacanteDesdeChat(vacante);
+    }, 300);
+
+    const newUrl = `${window.location.origin}${window.location.pathname}`;
+    window.history.replaceState({}, document.title, newUrl);
+  } catch (error) {
+    console.error("Error cargando vacante preseleccionada:", error);
+  }
+}
+
+/* =========================
    EVENTOS
 ========================= */
 if (toggle) toggle.addEventListener("click", openChat);
@@ -961,19 +975,30 @@ if (startApplicationBtnSecondary) {
 if (filtroPais) {
   filtroPais.addEventListener("change", () => {
     llenarEstados(filtroPais, filtroEstado, filtroCiudad);
-    cargarVacantesVista();
   });
 }
 
 if (filtroEstado) {
   filtroEstado.addEventListener("change", () => {
     llenarCiudades(filtroPais, filtroEstado, filtroCiudad);
-    cargarVacantesVista();
   });
 }
 
-if (filtroCiudad) filtroCiudad.addEventListener("change", cargarVacantesVista);
-if (filtroTipo) filtroTipo.addEventListener("change", cargarVacantesVista);
+if (vacantesSearchForm) {
+  vacantesSearchForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    const params = new URLSearchParams();
+
+    if (filtroTipo?.value) params.set("tipoVacante", filtroTipo.value);
+    if (filtroPais?.value) params.set("pais", filtroPais.value);
+    if (filtroEstado?.value) params.set("estado", filtroEstado.value);
+    if (filtroCiudad?.value) params.set("ciudad", filtroCiudad.value);
+
+    window.location.href = `/vacantes.html?${params.toString()}`;
+  });
+}
+
 if (consultarStatusBtn) consultarStatusBtn.addEventListener("click", consultarEstatus);
 
 if (attachCvBtn && chatCvFile) {
@@ -1051,8 +1076,12 @@ if (form) {
 async function init() {
   renderMessages();
   await cargarUbicaciones();
-  llenarEstados(filtroPais, filtroEstado, filtroCiudad);
-  await cargarVacantesVista();
+
+  if (filtroPais && filtroEstado && filtroCiudad) {
+    llenarEstados(filtroPais, filtroEstado, filtroCiudad);
+  }
+
+  await procesarVacantePreseleccionada();
 }
 
 init();
