@@ -10,6 +10,7 @@
   --muted: #b8b8b8;
   --primary: #ffffff;
   --primary-2: #d9d9d9;
+  --success: #35ff8a;
   --shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
   --radius: 22px;
 }
@@ -168,6 +169,14 @@ body {
   line-height: 1.6;
 }
 
+.eyebrow {
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -237,6 +246,9 @@ select option {
   cursor: pointer;
   text-decoration: none;
   transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease, border 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn:hover {
@@ -281,6 +293,9 @@ select option {
   display: none !important;
 }
 
+/* =========================
+   MAPA SUCURSALES
+========================= */
 .branch-card {
   padding: 0;
 }
@@ -292,72 +307,110 @@ select option {
 
 .branch-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
-  min-height: 520px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.85fr);
+  min-height: 560px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
 .branch-map {
   position: relative;
-  min-height: 520px;
+  min-height: 560px;
   overflow: hidden;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(255,255,255,0.06) 1px, transparent 1px),
-    radial-gradient(circle at 34% 30%, rgba(255,255,255,0.12), transparent 18%),
-    linear-gradient(135deg, #0f1815, #111111 58%, #151515);
-  background-size: 78px 78px, 78px 78px, auto, auto;
+  background: #111111;
 }
 
-.branch-map::before,
-.branch-map::after {
-  content: "";
-  position: absolute;
-  inset: auto -10% 18% -10%;
-  height: 110px;
-  border-top: 20px solid rgba(255,255,255,0.16);
-  border-bottom: 2px solid rgba(255,255,255,0.08);
-  transform: rotate(-18deg);
+.branch-map--real {
+  padding: 14px;
 }
 
-.branch-map::after {
-  inset: 12% -20% auto -20%;
-  height: 90px;
-  transform: rotate(28deg);
-  border-top-width: 14px;
-}
-
-.branch-map__markers {
-  position: absolute;
-  inset: 0;
-}
-
-.branch-marker {
-  position: absolute;
-  width: 42px;
-  height: 42px;
-  border: 0;
-  border-radius: 50% 50% 50% 10px;
-  background: linear-gradient(135deg, #ffffff, #cfcfcf);
-  color: #050505;
-  font-weight: 900;
-  transform: translate(-50%, -50%) rotate(-45deg);
-  cursor: pointer;
-  box-shadow: 0 12px 24px rgba(0,0,0,0.38);
-}
-
-.branch-marker span {
-  display: grid;
-  place-items: center;
+#realBranchMap {
   width: 100%;
   height: 100%;
-  transform: rotate(45deg);
+  min-height: 532px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 20px 45px rgba(0,0,0,0.32);
 }
 
-.branch-marker.is-active {
+.leaflet-container {
+  background: #111111;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.leaflet-popup-content-wrapper {
+  background: rgba(14, 14, 14, 0.98);
+  color: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+}
+
+.leaflet-popup-tip {
+  background: rgba(14, 14, 14, 0.98);
+}
+
+.map-popup {
+  min-width: 220px;
+}
+
+.map-popup strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #ffffff;
+}
+
+.map-popup span {
+  display: block;
+  color: #d0d0d0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.map-popup button {
+  width: 100%;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #ffffff, #d7d7d7);
+  color: #000000;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.user-location-marker {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #35ff8a;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 8px rgba(53,255,138,0.18);
+}
+
+.branch-pin {
+  width: 34px;
+  height: 34px;
+  border-radius: 50% 50% 50% 10px;
+  background: linear-gradient(135deg, #ffffff, #cfcfcf);
+  transform: rotate(-45deg);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.40);
+  border: 1px solid rgba(0,0,0,0.15);
+}
+
+.branch-pin span {
+  transform: rotate(45deg);
+  color: #000000;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.branch-pin.is-active {
   background: linear-gradient(135deg, #35ff8a, #ffffff);
-  box-shadow: 0 0 0 8px rgba(53,255,138,0.12), 0 16px 28px rgba(0,0,0,0.44);
+  box-shadow: 0 0 0 8px rgba(53,255,138,0.14), 0 16px 28px rgba(0,0,0,0.44);
 }
 
 .branch-panel {
@@ -388,6 +441,10 @@ select option {
   cursor: pointer;
 }
 
+.branch-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+
 .branch-item.is-active {
   border-color: rgba(53,255,138,0.55);
   background: rgba(53,255,138,0.10);
@@ -405,6 +462,15 @@ select option {
   line-height: 1.45;
 }
 
+.branch-distance {
+  margin-top: 8px;
+  color: #35ff8a !important;
+  font-weight: 800;
+}
+
+/* =========================
+   VACANTES POR SUCURSAL
+========================= */
 .vacancy-board__head {
   display: flex;
   align-items: flex-start;
@@ -430,14 +496,6 @@ select option {
   align-items: flex-start;
   justify-content: flex-end;
   gap: 12px;
-}
-
-.eyebrow {
-  color: #35ff8a;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .branch-vacancies {
@@ -482,6 +540,9 @@ select option {
   font-weight: 700;
 }
 
+/* =========================
+   CHATBOT
+========================= */
 .chatbot-box {
   position: fixed;
   right: 22px;
@@ -574,33 +635,6 @@ select option {
   color: #000000;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.18s ease, opacity 0.18s ease;
-}
-
-.chat-vacancies {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.chat-vacancy-card {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 16px;
-  padding: 14px;
-}
-
-.chat-vacancy-card h4 {
-  margin: 0 0 8px;
-  color: #ffffff;
-  font-size: 15px;
-}
-
-.chat-vacancy-card p {
-  margin: 4px 0;
-  color: #d4d4d4;
-  font-size: 13px;
-  line-height: 1.4;
 }
 
 .chatbot-upload-bar {
@@ -702,6 +736,9 @@ select option {
   70%, 100% { transform: scale(1.18); opacity: 0; }
 }
 
+/* =========================
+   RESPONSIVE
+========================= */
 @media (max-width: 980px) {
   .branch-layout,
   .branch-vacancies {
@@ -709,7 +746,11 @@ select option {
   }
 
   .branch-map {
-    min-height: 420px;
+    min-height: 440px;
+  }
+
+  #realBranchMap {
+    min-height: 410px;
   }
 }
 
@@ -731,6 +772,15 @@ select option {
   .section-head--split,
   .vacancy-board__head {
     display: grid;
+  }
+
+  .branch-map-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .branch-map-actions .btn {
+    width: 100%;
   }
 
   .vacancy-board__head p,
@@ -781,9 +831,7 @@ select option {
     flex-direction: column;
   }
 
-  .chat-option-btn,
-  .section-head--split .btn,
-  .branch-map-actions {
+  .chat-option-btn {
     width: 100%;
   }
 }

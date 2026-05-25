@@ -2,7 +2,7 @@
   --bg: #050505;
   --bg-soft: #0d0d0d;
   --panel: rgba(18, 18, 18, 0.96);
-  --panel-soft: rgba(255, 255, 255, 0.03);
+  --panel-soft: rgba(255, 255, 255, 0.04);
   --panel-strong: #111111;
   --line: rgba(255, 255, 255, 0.10);
   --line-strong: rgba(255, 255, 255, 0.18);
@@ -55,11 +55,6 @@ body {
   justify-content: space-between;
 }
 
-.topbar::before,
-.topbar::after {
-  content: none;
-}
-
 .topbar__left {
   display: flex;
   align-items: center;
@@ -70,12 +65,6 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.topbar .topbar__left,
-.topbar .topbar__right {
-  position: relative;
-  z-index: 1;
 }
 
 .corporativo-logo {
@@ -201,6 +190,100 @@ body {
 }
 
 /* =========================
+   FORMULARIOS / FILTROS
+========================= */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 22px 0 26px;
+  padding: 20px;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.055);
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 13px 15px;
+  outline: none;
+  transition: 0.22s ease;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.6;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.field select {
+  cursor: pointer;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #ffffff 50%),
+    linear-gradient(135deg, #ffffff 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) 21px,
+    calc(100% - 14px) 21px;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 42px;
+}
+
+.field select option {
+  background: #111111;
+  color: #ffffff;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: rgba(255, 255, 255, 0.44);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+}
+
+.field input:hover,
+.field select:hover,
+.field textarea:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* =========================
    STATUS
 ========================= */
 .status {
@@ -251,7 +334,7 @@ body {
 }
 
 /* =========================
-   GRID DE CANDIDATOS
+   GRID / CARDS
 ========================= */
 .dashboard-grid {
   display: grid;
@@ -266,7 +349,8 @@ body {
   min-height: 260px;
   padding: 18px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.03);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
   border: 1px solid var(--line);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
 }
@@ -311,7 +395,7 @@ body {
 }
 
 /* =========================
-   BADGES DE ESTADO
+   BADGES
 ========================= */
 .estado {
   display: inline-flex;
@@ -361,7 +445,7 @@ body {
 
 .modal__content {
   position: relative;
-  width: min(860px, calc(100vw - 32px));
+  width: min(900px, calc(100vw - 32px));
   max-height: 88vh;
   overflow-y: auto;
   margin: 4vh auto 0;
@@ -393,6 +477,11 @@ body {
 
 .modal__body {
   padding-top: 20px;
+}
+
+.modal__body .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
 }
 
 .modal__footer {
@@ -449,9 +538,6 @@ body {
   word-break: break-word;
 }
 
-/* =========================
-   MAPAS EN MODAL
-========================= */
 .modal-map-actions {
   display: flex;
   flex-wrap: wrap;
@@ -580,7 +666,15 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal__body .form-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -612,6 +706,11 @@ body {
 
   .dashboard-stats {
     grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    padding: 16px;
   }
 
   .dashboard-head {

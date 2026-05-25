@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vacantes | GA Hospitality</title>
   <link rel="icon" type="image/png" sizes="32x32" href="icons8-documento-32.png">
-  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="dashboard.css?v=2" />
 </head>
 <body>
 
@@ -28,7 +28,7 @@
       <div class="section-head dashboard-head">
         <div>
           <h2>Administración de vacantes</h2>
-          <p>Agrega, edita y elimina ofertas laborales por ciudad, marca o departamento.</p>
+          <p>Agrega, edita y elimina ofertas laborales por ciudad, marca, sucursal y ubicación.</p>
         </div>
 
         <div class="dashboard-actions">
@@ -51,7 +51,7 @@
           <label for="adminFiltroPais">País</label>
           <select id="adminFiltroPais">
             <option value="">Todos</option>
-            <option value="México">México</option>
+            <option value="Mexico">México</option>
             <option value="Estados Unidos">Estados Unidos</option>
           </select>
         </div>
@@ -83,7 +83,7 @@
       <div class="modal__header">
         <div>
           <h3 id="vacanteModalTitle">Nueva vacante</h3>
-          <p>Configura dónde va a aparecer y qué requisitos tendrá.</p>
+          <p>Configura la vacante, sucursal y ubicación en mapas.</p>
         </div>
         <button id="closeVacanteModalBtn" class="chatbot-close">✕</button>
       </div>
@@ -103,7 +103,7 @@
 
           <div class="field">
             <label for="vacanteGrupo">Marca / Departamento</label>
-            <input id="vacanteGrupo" type="text" placeholder="Ej. Applebee's o RH" required />
+            <input id="vacanteGrupo" type="text" placeholder="Ej. Applebee's, Wendy's, RH" required />
           </div>
 
           <div class="field">
@@ -120,7 +120,7 @@
             <label for="vacantePais">País</label>
             <select id="vacantePais" required>
               <option value="">Selecciona</option>
-              <option value="México">México</option>
+              <option value="Mexico">México</option>
               <option value="Estados Unidos">Estados Unidos</option>
             </select>
           </div>
@@ -144,6 +144,36 @@
             <input id="vacanteSucursal" type="text" placeholder="Ej. Tecnológico / Corporativo" required />
           </div>
 
+          <div class="field">
+            <label for="vacanteNumeroTienda">Número de tienda</label>
+            <input id="vacanteNumeroTienda" type="text" placeholder="Ej. 042, 4142, APB-TEC" />
+          </div>
+
+          <div class="field field--full">
+            <label for="vacanteDireccion">Dirección completa</label>
+            <input id="vacanteDireccion" type="text" placeholder="Ej. Av. Tecnológico 1234, Ciudad Juárez, Chihuahua" />
+          </div>
+
+          <div class="field field--full">
+            <label for="vacanteGoogleMapsUrl">URL de Google Maps</label>
+            <input id="vacanteGoogleMapsUrl" type="url" placeholder="Pega aquí el enlace de Google Maps de la sucursal" />
+          </div>
+
+          <div class="field field--full">
+            <label for="vacanteAppleMapsUrl">URL de Apple Maps</label>
+            <input id="vacanteAppleMapsUrl" type="url" placeholder="Opcional: pega aquí el enlace de Apple Maps" />
+          </div>
+
+          <div class="field">
+            <label for="vacanteLat">Latitud</label>
+            <input id="vacanteLat" type="number" step="any" placeholder="Ej. 31.6904" />
+          </div>
+
+          <div class="field">
+            <label for="vacanteLng">Longitud</label>
+            <input id="vacanteLng" type="number" step="any" placeholder="Ej. -106.4245" />
+          </div>
+
           <div class="field field--full">
             <label for="vacanteRequisitos">Requisitos</label>
             <textarea id="vacanteRequisitos" rows="4" placeholder="Separa cada requisito con coma" required></textarea>
@@ -156,7 +186,9 @@
       </div>
     </div>
   </div>
-
-  <script src="vacantes-admin.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="vacantes-admin.js?v=3"></script>
+  
 </body>
 </html>

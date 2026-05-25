@@ -1,4 +1,4 @@
-const API_URL = window.location.origin;
+const API_URL = "https://chatbot-reclutamiento-cl32.onrender.com";
 
 const toggle = document.getElementById("chatbot-toggle");
 const closeBtn = document.getElementById("chatbot-close");
@@ -19,7 +19,8 @@ const folioConsulta = document.getElementById("folioConsulta");
 const consultaStatusResultado = document.getElementById("consultaStatusResultado");
 const chatbotToggle = document.getElementById("chatbot-toggle");
 
-const branchMarkers = document.getElementById("branchMarkers");
+const realBranchMap = document.getElementById("realBranchMap");
+const useMyLocationBtn = document.getElementById("useMyLocationBtn");
 const branchList = document.getElementById("branchList");
 const branchSearch = document.getElementById("branchSearch");
 const branchBrandFilter = document.getElementById("branchBrandFilter");
@@ -35,6 +36,10 @@ let ubicaciones = {};
 let branches = [];
 let vacancies = [];
 let selectedBranchId = "";
+let map = null;
+let branchLayer = null;
+let userMarker = null;
+let userLocation = null;
 
 let applicationFlow = {
   active: false,
@@ -52,104 +57,8 @@ let candidateProfile = {
   cvNombre: ""
 };
 
-const DEMO_BRANCHES = [
-  {
-    id: "lc-chihuahua-centro",
-    nombre: "Little Caesars Chihuahua Centro",
-    marca: "Little Caesars",
-    pais: "Mexico",
-    estado: "Chihuahua",
-    ciudad: "Chihuahua",
-    direccion: "Av. Universidad 1301, Centro, Chihuahua",
-    googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Av.%20Universidad%201301%20Chihuahua",
-    mapX: 48,
-    mapY: 43
-  },
-  {
-    id: "wendys-juarez",
-    nombre: "Wendy's Cd. Juarez",
-    marca: "Wendy's",
-    pais: "Mexico",
-    estado: "Chihuahua",
-    ciudad: "Cd. Juarez",
-    direccion: "Blvd. Tomas Fernandez, Cd. Juarez, Chihuahua",
-    googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Blvd.%20Tomas%20Fernandez%20Cd.%20Juarez",
-    mapX: 39,
-    mapY: 26
-  },
-  {
-    id: "applebees-monterrey",
-    nombre: "Applebee's Monterrey",
-    marca: "Applebee's",
-    pais: "Mexico",
-    estado: "Nuevo Leon",
-    ciudad: "Monterrey",
-    direccion: "Av. Eugenio Garza Sada, Monterrey, Nuevo Leon",
-    googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Av.%20Eugenio%20Garza%20Sada%20Monterrey",
-    mapX: 58,
-    mapY: 52
-  },
-  {
-    id: "gaho-corporativo",
-    nombre: "GA Hospitality Corporativo",
-    marca: "GA Hospitality",
-    pais: "Mexico",
-    estado: "Chihuahua",
-    ciudad: "Chihuahua",
-    direccion: "Corporativo GA Hospitality, Chihuahua",
-    googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=GA%20Hospitality%20Chihuahua",
-    mapX: 53,
-    mapY: 38
-  }
-];
-
-const DEMO_VACANCIES = [
-  {
-    id: "vac-barista-juarez",
-    branchId: "wendys-juarez",
-    titulo: "Cajero / Atencion al cliente",
-    tipoVacante: "operativa",
-    horario: "Tiempo completo",
-    sueldo: "$2,700 semanal",
-    descripcion: "Atencion a clientes, cobro, limpieza de area y apoyo en operacion."
-  },
-  {
-    id: "vac-cocina-juarez",
-    branchId: "wendys-juarez",
-    titulo: "Auxiliar de cocina",
-    tipoVacante: "operativa",
-    horario: "Rol de turnos",
-    sueldo: "$2,600 semanal",
-    descripcion: "Preparacion de alimentos, control de calidad y apoyo al equipo de cocina."
-  },
-  {
-    id: "vac-pizzero-chihuahua",
-    branchId: "lc-chihuahua-centro",
-    titulo: "Pizzero",
-    tipoVacante: "operativa",
-    horario: "Medio tiempo",
-    sueldo: "$1,800 semanal",
-    descripcion: "Preparacion de producto, horno, inventario basico y servicio."
-  },
-  {
-    id: "vac-gerente-mty",
-    branchId: "applebees-monterrey",
-    titulo: "Gerente de restaurante",
-    tipoVacante: "operativa",
-    horario: "Tiempo completo",
-    sueldo: "Segun experiencia",
-    descripcion: "Supervision de equipo, indicadores operativos, servicio y administracion."
-  },
-  {
-    id: "vac-rh-corp",
-    branchId: "gaho-corporativo",
-    titulo: "Auxiliar de recursos humanos",
-    tipoVacante: "administrativa",
-    horario: "Lunes a viernes",
-    sueldo: "Segun experiencia",
-    descripcion: "Apoyo en reclutamiento, seguimiento a candidatos y control documental."
-  }
-];
+const DEFAULT_CENTER = [23.6345, -102.5528];
+const DEFAULT_ZOOM = 5;
 
 const chatHistory = [
   {
@@ -178,8 +87,18 @@ function slugify(text = "") {
     .replace(/^-|-$/g, "");
 }
 
+function escapeHtml(text = "") {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function getBranchIdFromVacancy(vacancy = {}) {
   if (vacancy.branchId) return vacancy.branchId;
+  if (vacancy.sucursalId) return vacancy.sucursalId;
 
   return slugify(
     [
@@ -188,9 +107,7 @@ function getBranchIdFromVacancy(vacancy = {}) {
       vacancy.ciudad,
       vacancy.estado,
       vacancy.pais
-    ]
-      .filter(Boolean)
-      .join("-")
+    ].filter(Boolean).join("-")
   );
 }
 
@@ -202,9 +119,7 @@ function buildMapQuery(branch = {}) {
     branch.ciudad,
     branch.estado,
     branch.pais
-  ]
-    .filter(Boolean)
-    .join(", ");
+  ].filter(Boolean).join(", ");
 }
 
 function buildGoogleMapsUrl(branch = {}) {
@@ -217,20 +132,31 @@ function buildAppleMapsUrl(branch = {}) {
   return `https://maps.apple.com/?q=${encodeURIComponent(buildMapQuery(branch))}`;
 }
 
-function getBranchPosition(index, total) {
-  if (total <= 1) return { mapX: 50, mapY: 50 };
+function hasValidCoords(branch = {}) {
+  const lat = Number(branch.lat);
+  const lng = Number(branch.lng);
 
-  const cols = Math.ceil(Math.sqrt(total));
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  const xStep = 70 / Math.max(cols - 1, 1);
-  const rows = Math.ceil(total / cols);
-  const yStep = 58 / Math.max(rows - 1, 1);
+  return Number.isFinite(lat) && Number.isFinite(lng);
+}
 
-  return {
-    mapX: 15 + col * xStep,
-    mapY: 22 + row * yStep
-  };
+function getBranchLatLng(branch = {}) {
+  return [Number(branch.lat), Number(branch.lng)];
+}
+
+function getDistanceKm(lat1, lng1, lat2, lng2) {
+  const earthRadius = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadius * c;
 }
 
 function normalizeVacancy(vacancy = {}) {
@@ -256,33 +182,31 @@ function buildBranchesFromVacancies(vacancyList = []) {
       pais: vacancy.pais || "",
       estado: vacancy.estado || "",
       ciudad: vacancy.ciudad || "",
-      direccion: vacancy.direccion || vacancy.direccionSucursal || "",
-      googleMapsUrl: vacancy.googleMapsUrl || vacancy.mapsUrl || "",
+      direccion: vacancy.direccion || "",
+      googleMapsUrl: vacancy.googleMapsUrl || "",
       appleMapsUrl: vacancy.appleMapsUrl || "",
-      lat: vacancy.lat || vacancy.latitude || "",
-      lng: vacancy.lng || vacancy.longitude || ""
+      numeroTienda: vacancy.numeroTienda || "",
+      lat: vacancy.lat || "",
+      lng: vacancy.lng || ""
     });
   });
 
-  return [...byBranch.values()].map((branch, index, list) => ({
-    ...branch,
-    ...getBranchPosition(index, list.length)
-  }));
+  return Array.from(byBranch.values());
 }
 
 function activateListeningState() {
-  chatbotToggle?.classList.add("is-listening");
+  if (chatbotToggle) chatbotToggle.classList.add("is-listening");
 }
 
 function deactivateListeningState() {
-  chatbotToggle?.classList.remove("is-listening");
+  if (chatbotToggle) chatbotToggle.classList.remove("is-listening");
 }
 
 function openChat() {
   if (!box) return;
   box.classList.remove("hidden");
   activateListeningState();
-  input?.focus();
+  if (input) input.focus();
 }
 
 function closeChat() {
@@ -326,8 +250,10 @@ function renderMessages() {
 
         btn.addEventListener("click", () => {
           if (opt.value === "analizar_cv") startCvAnalysisFlow();
+
           if (opt.value === "buscar_sucursal") {
-            document.getElementById("postulate-sucursal")?.scrollIntoView({ behavior: "smooth" });
+            const section = document.getElementById("postulate-sucursal");
+            if (section) section.scrollIntoView({ behavior: "smooth" });
           }
         });
 
@@ -350,13 +276,13 @@ function startCvAnalysisFlow() {
   applicationFlow.mode = "cv_analysis";
   openChat();
   addAssistantText(
-    "Perfecto. Adjunta tu CV en formato PDF y analizare automaticamente tu experiencia, habilidades y perfil profesional."
+    "Perfecto. Adjunta tu CV en formato PDF y analizaré automáticamente tu experiencia, habilidades y perfil profesional."
   );
 }
 
 function startVacancyApplication(vacancyId) {
   const vacancy = vacancies.find((item) => item.id === vacancyId);
-  const branch = branches.find((item) => item.id === vacancy?.branchId);
+  const branch = branches.find((item) => item.id === getBranchIdFromVacancy(vacancy || {}));
 
   if (!vacancy || !branch) return;
 
@@ -367,7 +293,7 @@ function startVacancyApplication(vacancyId) {
 
   openChat();
   addAssistantText(
-    `Excelente. Iniciaremos tu postulacion para:\n\n${vacancy.titulo}\n${branch.nombre}\n${branch.direccion}\n\nPrimero adjunta tu CV en PDF. Si no lo tienes a la mano, escribe tu nombre completo y telefono para iniciar tu registro.`
+    `Excelente. Iniciaremos tu postulación para:\n\n${vacancy.titulo}\n${branch.nombre}\n${branch.direccion || ""}\n\nPrimero adjunta tu CV en PDF.`
   );
 }
 
@@ -380,7 +306,7 @@ async function processCvAnalysisOnly() {
   const vacancy = applicationFlow.selectedVacancy;
   const branch = applicationFlow.selectedBranch;
 
-  addAssistantText("Analizando CV y preparando tu postulacion...");
+  addAssistantText("Analizando CV y preparando tu postulación...");
 
   const formData = new FormData();
   formData.append("cvFile", applicationFlow.cvFile);
@@ -406,32 +332,20 @@ async function processCvAnalysisOnly() {
     candidateProfile.cvNombre = analisis.cvNombre || "";
     candidateProfile.resumenIA = analisis.resumenIA || "";
 
-    addAssistantText(`Analisis completado.\n\nResumen detectado:\n${candidateProfile.resumenIA}`);
+    addAssistantText(`Análisis completado.\n\nResumen detectado:\n${candidateProfile.resumenIA}`);
 
     if (vacancy && branch) {
       addAssistantText(
-        `Tu CV quedo ligado a la vacante ${vacancy.titulo} en ${branch.nombre}. El siguiente paso es completar tus datos de contacto.`
+        `Tu CV quedó ligado a la vacante ${vacancy.titulo} en ${branch.nombre}.`
       );
       return;
     }
 
-    if (Array.isArray(analisis.sugerenciasIA) && analisis.sugerenciasIA.length) {
-      mostrarVacantesIA(analisis.sugerenciasIA);
-    } else {
-      addAssistantText("No encontre recomendaciones automaticas en este momento.");
-    }
+    addAssistantText("Puedes revisar las vacantes disponibles en el mapa de sucursales.");
   } catch (error) {
     console.error(error);
     addAssistantText(`${error.message}`);
   }
-}
-
-function mostrarVacantesIA(recomendaciones = []) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "msg assistant";
-  wrapper.textContent = "Estas vacantes podrian adaptarse a tu perfil. Puedes revisarlas en el apartado de sucursales.";
-  messagesDiv.appendChild(wrapper);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
 async function fetchJsonOrFallback(url, fallback) {
@@ -441,107 +355,243 @@ async function fetchJsonOrFallback(url, fallback) {
     const data = await response.json();
     return Array.isArray(data) ? data : fallback;
   } catch (error) {
+    console.error("Error cargando:", url, error);
     return fallback;
   }
 }
 
 async function cargarBranchData() {
-  vacancies = (await fetchJsonOrFallback(`${API_URL}/api/vacantes`, DEMO_VACANCIES)).map(normalizeVacancy);
+  vacancies = (await fetchJsonOrFallback(`${API_URL}/api/vacantes`, [])).map(normalizeVacancy);
   branches = await fetchJsonOrFallback(`${API_URL}/api/sucursales`, []);
 
   if (!branches.length) {
     branches = buildBranchesFromVacancies(vacancies);
   }
 
-  branches = branches.map((branch, index) => ({
+  branches = branches.map((branch) => ({
     ...branch,
     id: branch.id || slugify(`${branch.marca || branch.grupo} ${branch.sucursal || branch.nombre} ${branch.ciudad}`),
     nombre: branch.nombre || branch.sucursal || `${branch.marca || "Sucursal"} ${branch.ciudad || ""}`.trim(),
     marca: branch.marca || branch.grupo || "GA Hospitality",
-    mapX: branch.mapX || getBranchPosition(index, branches.length).mapX,
-    mapY: branch.mapY || getBranchPosition(index, branches.length).mapY
+    googleMapsUrl: branch.googleMapsUrl || buildGoogleMapsUrl(branch),
+    appleMapsUrl: branch.appleMapsUrl || buildAppleMapsUrl(branch)
   }));
 
-  const brands = [...new Set(branches.map((branch) => branch.marca).filter(Boolean))].sort();
+  const brands = Array.from(new Set(branches.map((branch) => branch.marca).filter(Boolean))).sort();
+
   if (branchBrandFilter) {
     branchBrandFilter.innerHTML = `<option value="">Todas</option>`;
+
+    brands.forEach((brand) => {
+      const option = document.createElement("option");
+      option.value = brand;
+      option.textContent = brand;
+      branchBrandFilter.appendChild(option);
+    });
   }
 
-  brands.forEach((brand) => {
-    const option = document.createElement("option");
-    option.value = brand;
-    option.textContent = brand;
-    branchBrandFilter?.appendChild(option);
-  });
-
   selectedBranchId = "";
+  initMap();
   renderBranches();
 }
 
-function getFilteredBranches() {
-  const search = normalizeText(branchSearch?.value || "");
-  const brand = branchBrandFilter?.value || "";
+function initMap() {
+  if (!realBranchMap || !window.L) return;
 
-  return branches.filter((branch) => {
-    const matchesBrand = !brand || branch.marca === brand;
-    const haystack = normalizeText(
-      `${branch.nombre} ${branch.marca} ${branch.ciudad} ${branch.estado} ${branch.direccion}`
-    );
-    return matchesBrand && (!search || haystack.includes(search));
+  if (map) {
+    map.remove();
+    map = null;
+  }
+
+  map = L.map("realBranchMap", {
+    zoomControl: true,
+    scrollWheelZoom: true
+  }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap"
+  }).addTo(map);
+
+  branchLayer = L.layerGroup().addTo(map);
+
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 250);
+}
+
+function createBranchIcon(isActive) {
+  const activeClass = isActive ? " is-active" : "";
+
+  return L.divIcon({
+    className: "",
+    html: `<div class="branch-pin${activeClass}"><span>GA</span></div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -32]
   });
 }
 
+function createUserIcon() {
+  return L.divIcon({
+    className: "",
+    html: `<div class="user-location-marker"></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+}
+
+function renderMapMarkers(filteredBranches) {
+  if (!map || !branchLayer) return;
+
+  branchLayer.clearLayers();
+
+  const bounds = [];
+
+  filteredBranches.forEach((branch) => {
+    if (!hasValidCoords(branch)) return;
+
+    const latLng = getBranchLatLng(branch);
+    bounds.push(latLng);
+
+    const marker = L.marker(latLng, {
+      icon: createBranchIcon(branch.id === selectedBranchId)
+    });
+
+    marker.bindPopup(`
+      <div class="map-popup">
+        <strong>${escapeHtml(branch.nombre)}</strong>
+        <span>${escapeHtml(branch.marca || "")}</span>
+        <span>${escapeHtml(branch.direccion || "")}</span>
+        <button type="button" data-map-branch="${escapeHtml(branch.id)}">Ver vacantes</button>
+      </div>
+    `);
+
+    marker.on("click", () => {
+      selectBranch(branch.id, false);
+    });
+
+    marker.addTo(branchLayer);
+  });
+
+  map.on("popupopen", () => {
+    document.querySelectorAll("[data-map-branch]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectBranch(btn.dataset.mapBranch, true);
+      });
+    });
+  });
+
+  if (bounds.length) {
+    map.fitBounds(bounds, {
+      padding: [35, 35],
+      maxZoom: 13
+    });
+  }
+}
+
+function getFilteredBranches() {
+  const search = normalizeText(branchSearch ? branchSearch.value : "");
+  const brand = branchBrandFilter ? branchBrandFilter.value : "";
+
+  let list = branches.filter((branch) => {
+    const matchesBrand = !brand || branch.marca === brand;
+    const haystack = normalizeText(
+      `${branch.nombre} ${branch.marca} ${branch.ciudad} ${branch.estado} ${branch.direccion} ${branch.numeroTienda || ""}`
+    );
+
+    return matchesBrand && (!search || haystack.includes(search));
+  });
+
+  if (userLocation) {
+    list = list.map((branch) => {
+      if (!hasValidCoords(branch)) return { ...branch, distanceKm: null };
+
+      const distanceKm = getDistanceKm(
+        userLocation.lat,
+        userLocation.lng,
+        Number(branch.lat),
+        Number(branch.lng)
+      );
+
+      return { ...branch, distanceKm };
+    });
+
+    list.sort((a, b) => {
+      if (a.distanceKm === null) return 1;
+      if (b.distanceKm === null) return -1;
+      return a.distanceKm - b.distanceKm;
+    });
+  }
+
+  return list;
+}
+
 function renderBranches() {
-  if (!branchMarkers || !branchList) return;
+  if (!branchList) return;
 
   const filteredBranches = getFilteredBranches();
-  branchMarkers.innerHTML = "";
   branchList.innerHTML = "";
 
   filteredBranches.forEach((branch) => {
-    const marker = document.createElement("button");
-    marker.type = "button";
-    marker.className = `branch-marker ${branch.id === selectedBranchId ? "is-active" : ""}`;
-    marker.style.left = `${branch.mapX || 50}%`;
-    marker.style.top = `${branch.mapY || 50}%`;
-    marker.title = branch.nombre;
-    marker.innerHTML = `<span>${getBranchVacancies(branch.id).length}</span>`;
-    marker.addEventListener("click", () => selectBranch(branch.id));
-    branchMarkers.appendChild(marker);
-
+    const jobsCount = getBranchVacancies(branch.id).length;
     const item = document.createElement("button");
     item.type = "button";
     item.className = `branch-item ${branch.id === selectedBranchId ? "is-active" : ""}`;
+
+    let distanceHtml = "";
+
+    if (branch.distanceKm !== null && branch.distanceKm !== undefined) {
+      distanceHtml = `<span class="branch-distance">${branch.distanceKm.toFixed(1)} km aprox.</span>`;
+    }
+
     item.innerHTML = `
-      <strong>${branch.nombre}</strong>
-      <span>${branch.marca} - ${branch.ciudad}, ${branch.estado}</span>
-      <span>${branch.direccion}</span>
+      <strong>${escapeHtml(branch.nombre)}</strong>
+      <span>${escapeHtml(branch.marca || "")} - ${escapeHtml(branch.ciudad || "")}, ${escapeHtml(branch.estado || "")}</span>
+      <span>${escapeHtml(branch.direccion || "Dirección no registrada")}</span>
+      <span>${jobsCount} vacante(s) disponible(s)</span>
+      ${distanceHtml}
     `;
-    item.addEventListener("click", () => selectBranch(branch.id));
+
+    item.addEventListener("click", () => selectBranch(branch.id, true));
     branchList.appendChild(item);
   });
 
   if (!filteredBranches.some((branch) => branch.id === selectedBranchId)) {
-    selectedBranchId = filteredBranches[0]?.id || "";
+    selectedBranchId = "";
   }
 
+  renderMapMarkers(filteredBranches);
   renderSelectedBranch();
 }
 
-function selectBranch(branchId) {
+function selectBranch(branchId, moveMap = true) {
   selectedBranchId = branchId;
+
+  const branch = branches.find((item) => item.id === branchId);
+
+  if (branch && map && hasValidCoords(branch) && moveMap) {
+    map.setView(getBranchLatLng(branch), 15);
+  }
+
   renderBranches();
-  vacancyBoard?.classList.remove("hidden");
-  selectedBranchMapLink?.classList.remove("hidden");
-  selectedBranchAppleMapLink?.classList.remove("hidden");
-  vacancyBoard?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  if (vacancyBoard) vacancyBoard.classList.remove("hidden");
+  if (selectedBranchMapLink) selectedBranchMapLink.classList.remove("hidden");
+  if (selectedBranchAppleMapLink) selectedBranchAppleMapLink.classList.remove("hidden");
+
+  if (vacancyBoard) {
+    vacancyBoard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 }
 
 function closeBranchVacancies() {
   selectedBranchId = "";
-  vacancyBoard?.classList.add("hidden");
-  selectedBranchMapLink?.classList.add("hidden");
-  selectedBranchAppleMapLink?.classList.add("hidden");
+
+  if (vacancyBoard) vacancyBoard.classList.add("hidden");
+  if (selectedBranchMapLink) selectedBranchMapLink.classList.add("hidden");
+  if (selectedBranchAppleMapLink) selectedBranchAppleMapLink.classList.add("hidden");
+
   renderBranches();
 }
 
@@ -558,13 +608,17 @@ function renderSelectedBranch() {
   }
 
   const branchJobs = getBranchVacancies(branch.id);
-  selectedBranchName.textContent = branch.nombre;
-  selectedBranchAddress.textContent = [branch.direccion, branch.ciudad, branch.estado]
-    .filter(Boolean)
-    .join(" - ");
 
-  selectedBranchMapLink.href = buildGoogleMapsUrl(branch);
-  selectedBranchAppleMapLink.href = buildAppleMapsUrl(branch);
+  if (selectedBranchName) selectedBranchName.textContent = branch.nombre;
+
+  if (selectedBranchAddress) {
+    selectedBranchAddress.textContent = [branch.direccion, branch.ciudad, branch.estado]
+      .filter(Boolean)
+      .join(" - ");
+  }
+
+  if (selectedBranchMapLink) selectedBranchMapLink.href = buildGoogleMapsUrl(branch);
+  if (selectedBranchAppleMapLink) selectedBranchAppleMapLink.href = buildAppleMapsUrl(branch);
 
   branchVacancies.innerHTML = "";
 
@@ -579,24 +633,88 @@ function renderSelectedBranch() {
   branchJobs.forEach((vacancy) => {
     const card = document.createElement("article");
     card.className = "vacancy-card";
+
+    let descripcion = "Vacante disponible en esta sucursal.";
+
+    if (vacancy.descripcion) {
+      descripcion = vacancy.descripcion;
+    } else if (Array.isArray(vacancy.requisitos)) {
+      descripcion = vacancy.requisitos.join(", ");
+    }
+
     card.innerHTML = `
       <div class="vacancy-meta">
-        <span>${vacancy.tipoVacante || "operativa"}</span>
-        <span>${vacancy.area || vacancy.horario || "Area por definir"}</span>
+        <span>${escapeHtml(vacancy.tipoVacante || "operativa")}</span>
+        <span>${escapeHtml(vacancy.area || vacancy.horario || "Área por definir")}</span>
       </div>
-      <h4>${vacancy.titulo}</h4>
-      <p>${vacancy.descripcion || (Array.isArray(vacancy.requisitos) ? vacancy.requisitos.join(", ") : "Vacante disponible en esta sucursal.")}</p>
-      <p><strong>${vacancy.grupo || vacancy.sueldo || "GA Hospitality"}</strong></p>
-      <button class="btn btn--primary" type="button" data-apply="${vacancy.id}">
+      <h4>${escapeHtml(vacancy.titulo || "Vacante")}</h4>
+      <p>${escapeHtml(descripcion)}</p>
+      <p><strong>${escapeHtml(vacancy.grupo || vacancy.sueldo || "GA Hospitality")}</strong></p>
+      <button class="btn btn--primary" type="button" data-apply="${escapeHtml(vacancy.id)}">
         Aplicar
       </button>
     `;
+
     branchVacancies.appendChild(card);
   });
 
   branchVacancies.querySelectorAll("[data-apply]").forEach((button) => {
     button.addEventListener("click", () => startVacancyApplication(button.dataset.apply));
   });
+}
+
+function useMyLocation() {
+  if (!navigator.geolocation) {
+    addAssistantText("Tu navegador no permite geolocalización.");
+    return;
+  }
+
+  if (useMyLocationBtn) {
+    useMyLocationBtn.disabled = true;
+    useMyLocationBtn.textContent = "Buscando ubicación...";
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      userLocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+
+      if (map) {
+        if (userMarker) {
+          userMarker.remove();
+        }
+
+        userMarker = L.marker([userLocation.lat, userLocation.lng], {
+          icon: createUserIcon()
+        }).addTo(map);
+
+        userMarker.bindPopup("Tu ubicación aproximada").openPopup();
+        map.setView([userLocation.lat, userLocation.lng], 13);
+      }
+
+      renderBranches();
+
+      if (useMyLocationBtn) {
+        useMyLocationBtn.disabled = false;
+        useMyLocationBtn.textContent = "Actualizar mi ubicación";
+      }
+    },
+    () => {
+      if (useMyLocationBtn) {
+        useMyLocationBtn.disabled = false;
+        useMyLocationBtn.textContent = "Usar mi ubicación";
+      }
+
+      addAssistantText("No fue posible obtener tu ubicación. Puedes buscar manualmente por ciudad, marca o dirección.");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 60000
+    }
+  );
 }
 
 async function cargarUbicaciones() {
@@ -606,15 +724,21 @@ async function cargarUbicaciones() {
   } catch (error) {
     ubicaciones = {
       Mexico: {
-        Chihuahua: ["Chihuahua", "Cd. Juarez"],
-        "Nuevo Leon": ["Monterrey"]
+        Chihuahua: ["Ciudad Juarez", "Chihuahua"],
+        Jalisco: ["Guadalajara"]
+      },
+      "Estados Unidos": {
+        Texas: ["El Paso"]
       }
     };
   }
 }
 
 function llenarEstados() {
+  if (!filtroPais || !filtroEstado || !filtroCiudad) return;
+
   const pais = filtroPais.value;
+
   filtroEstado.innerHTML = `<option value="">Todos</option>`;
   filtroCiudad.innerHTML = `<option value="">Todas</option>`;
 
@@ -629,11 +753,14 @@ function llenarEstados() {
 }
 
 function llenarCiudades() {
+  if (!filtroPais || !filtroEstado || !filtroCiudad) return;
+
   const pais = filtroPais.value;
   const estado = filtroEstado.value;
+
   filtroCiudad.innerHTML = `<option value="">Todas</option>`;
 
-  if (!pais || !estado || !ubicaciones[pais]?.[estado]) return;
+  if (!pais || !estado || !ubicaciones[pais] || !ubicaciones[pais][estado]) return;
 
   ubicaciones[pais][estado].forEach((ciudad) => {
     const option = document.createElement("option");
@@ -645,16 +772,18 @@ function llenarCiudades() {
 
 function buscarVacantes() {
   const params = new URLSearchParams({
-    tipoVacante: filtroTipo.value || "",
-    pais: filtroPais.value || "",
-    estado: filtroEstado.value || "",
-    ciudad: filtroCiudad.value || ""
+    tipoVacante: filtroTipo ? filtroTipo.value || "" : "",
+    pais: filtroPais ? filtroPais.value || "" : "",
+    estado: filtroEstado ? filtroEstado.value || "" : "",
+    ciudad: filtroCiudad ? filtroCiudad.value || "" : ""
   });
 
-  window.location.href = `/vacantes.html?${params.toString()}`;
+  window.location.href = `vacantes.html?${params.toString()}`;
 }
 
 async function consultarEstatus() {
+  if (!folioConsulta || !consultaStatusResultado) return;
+
   const folio = folioConsulta.value.trim();
 
   if (!folio) {
@@ -679,16 +808,17 @@ async function consultarEstatus() {
   }
 }
 
-toggle?.addEventListener("click", openChat);
-closeBtn?.addEventListener("click", closeChat);
-startApplicationBtn?.addEventListener("click", startCvAnalysisFlow);
-buscarVacantesBtn?.addEventListener("click", buscarVacantes);
-filtroPais?.addEventListener("change", llenarEstados);
-filtroEstado?.addEventListener("change", llenarCiudades);
-consultarStatusBtn?.addEventListener("click", consultarEstatus);
-branchSearch?.addEventListener("input", renderBranches);
-branchBrandFilter?.addEventListener("change", renderBranches);
-closeBranchVacanciesBtn?.addEventListener("click", closeBranchVacancies);
+if (toggle) toggle.addEventListener("click", openChat);
+if (closeBtn) closeBtn.addEventListener("click", closeChat);
+if (startApplicationBtn) startApplicationBtn.addEventListener("click", startCvAnalysisFlow);
+if (buscarVacantesBtn) buscarVacantesBtn.addEventListener("click", buscarVacantes);
+if (filtroPais) filtroPais.addEventListener("change", llenarEstados);
+if (filtroEstado) filtroEstado.addEventListener("change", llenarCiudades);
+if (consultarStatusBtn) consultarStatusBtn.addEventListener("click", consultarEstatus);
+if (branchSearch) branchSearch.addEventListener("input", renderBranches);
+if (branchBrandFilter) branchBrandFilter.addEventListener("change", renderBranches);
+if (closeBranchVacanciesBtn) closeBranchVacanciesBtn.addEventListener("click", closeBranchVacancies);
+if (useMyLocationBtn) useMyLocationBtn.addEventListener("click", useMyLocation);
 
 if (attachCvBtn && chatCvFile) {
   attachCvBtn.addEventListener("click", () => {
@@ -702,7 +832,8 @@ if (attachCvBtn && chatCvFile) {
   });
 
   chatCvFile.addEventListener("change", async () => {
-    const file = chatCvFile.files?.[0];
+    const file = chatCvFile.files && chatCvFile.files[0];
+
     if (!file) return;
 
     const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
@@ -718,24 +849,28 @@ if (attachCvBtn && chatCvFile) {
   });
 }
 
-form?.addEventListener("submit", async (e) => {
-  e.preventDefault();
+if (form) {
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  const text = input.value.trim();
-  if (!text) return;
+    if (!input) return;
 
-  addUserText(text);
-  input.value = "";
+    const text = input.value.trim();
+    if (!text) return;
 
-  if (applicationFlow.mode === "branch_vacancy_application") {
-    addAssistantText(
-      "Gracias. Ya registre esta informacion para tu postulacion. Cuando conectemos el backend, aqui se enviara a la ruta de postulaciones con la sucursal y vacante seleccionadas."
-    );
-    return;
-  }
+    addUserText(text);
+    input.value = "";
 
-  addAssistantText("Estoy procesando tu mensaje...");
-});
+    if (applicationFlow.mode === "branch_vacancy_application") {
+      addAssistantText(
+        "Gracias. El siguiente paso será completar el formulario de postulación con tus datos y adjuntar tu CV."
+      );
+      return;
+    }
+
+    addAssistantText("Estoy procesando tu mensaje...");
+  });
+}
 
 async function init() {
   renderMessages();

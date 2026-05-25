@@ -385,9 +385,12 @@ function enriquecerVacanteConSucursal(vacante = {}) {
     ...vacante,
     branchId: sucursalId,
     sucursalId,
+    numeroTienda: vacante.numeroTienda || sucursal?.numeroTienda || "",
     direccion: vacante.direccion || sucursal?.direccion || "",
     googleMapsUrl: vacante.googleMapsUrl || sucursal?.googleMapsUrl || crearMapsUrl(query),
     appleMapsUrl: vacante.appleMapsUrl || sucursal?.appleMapsUrl || crearAppleMapsUrl(query),
+    lat: vacante.lat ?? sucursal?.lat ?? null,
+    lng: vacante.lng ?? sucursal?.lng ?? null,
     mapX: sucursal?.mapX,
     mapY: sucursal?.mapY
   };
@@ -548,15 +551,45 @@ app.get("/api/ubicaciones", (req, res) => {
 });
 
 app.get("/api/sucursales", (req, res) => {
-  const sucursales = leerSucursales();
   const vacantes = leerVacantes().map(enriquecerVacanteConSucursal);
+  const bySucursal = new Map();
 
-  res.json(
-    sucursales.map((sucursal) => ({
-      ...sucursal,
-      vacantesActivas: vacantes.filter((v) => v.branchId === sucursal.id).length
-    }))
-  );
+  vacantes.forEach((vacante) => {
+    const id = vacante.sucursalId || vacante.branchId || resolverSucursalId(vacante);
+
+    if (!id) return;
+
+    if (!bySucursal.has(id)) {
+      bySucursal.set(id, {
+        id,
+        nombre: vacante.sucursal || `${vacante.grupo || "Sucursal"} ${vacante.ciudad || ""}`.trim(),
+        marca: vacante.grupo || "GA Hospitality",
+        pais: vacante.pais || "",
+        estado: vacante.estado || "",
+        ciudad: vacante.ciudad || "",
+        sucursal: vacante.sucursal || "",
+        numeroTienda: vacante.numeroTienda || "",
+        direccion: vacante.direccion || "",
+        googleMapsUrl: vacante.googleMapsUrl || "",
+        appleMapsUrl: vacante.appleMapsUrl || "",
+        lat: vacante.lat ?? null,
+        lng: vacante.lng ?? null,
+        vacantesActivas: 0
+      });
+    }
+
+    const sucursal = bySucursal.get(id);
+    sucursal.vacantesActivas += 1;
+
+    if (!sucursal.numeroTienda && vacante.numeroTienda) sucursal.numeroTienda = vacante.numeroTienda;
+    if (!sucursal.direccion && vacante.direccion) sucursal.direccion = vacante.direccion;
+    if (!sucursal.googleMapsUrl && vacante.googleMapsUrl) sucursal.googleMapsUrl = vacante.googleMapsUrl;
+    if (!sucursal.appleMapsUrl && vacante.appleMapsUrl) sucursal.appleMapsUrl = vacante.appleMapsUrl;
+    if ((sucursal.lat === null || sucursal.lat === undefined) && vacante.lat !== null && vacante.lat !== undefined) sucursal.lat = vacante.lat;
+    if ((sucursal.lng === null || sucursal.lng === undefined) && vacante.lng !== null && vacante.lng !== undefined) sucursal.lng = vacante.lng;
+  });
+
+  res.json(Array.from(bySucursal.values()));
 });
 
 app.get("/api/vacantes", (req, res) => {
@@ -806,20 +839,23 @@ app.post("/api/vacantes", verifyAdmin, (req, res) => {
   const vacantes = leerVacantes();
 
   const {
-    tipoVacante,
-    grupo,
-    titulo,
-    area,
-    pais,
-    estado,
-    ciudad,
-    sucursal,
-    sucursalId,
-    direccion,
-    googleMapsUrl,
-    appleMapsUrl,
-    requisitos
-  } = req.body;
+  tipoVacante,
+  grupo,
+  titulo,
+  area,
+  pais,
+  estado,
+  ciudad,
+  sucursal,
+  sucursalId,
+  numeroTienda,
+  direccion,
+  googleMapsUrl,
+  appleMapsUrl,
+  lat,
+  lng,
+  requisitos
+} = req.body;
 
   if (!tipoVacante || !grupo || !titulo || !area || !pais || !estado || !ciudad || !sucursal) {
     return res.status(400).json({ error: "Faltan campos obligatorios." });
@@ -829,28 +865,32 @@ app.post("/api/vacantes", verifyAdmin, (req, res) => {
   const query = `${direccion || sucursal}, ${ciudad}, ${estado}, ${pais}`;
 
   const nuevaVacante = {
-    id: `vac-${Date.now()}`,
-    sucursalId: finalSucursalId,
-    branchId: finalSucursalId,
-    tipoVacante,
-    grupo,
-    titulo,
-    area,
-    pais,
-    estado,
-    ciudad,
-    sucursal,
-    direccion: direccion || "",
-    googleMapsUrl: googleMapsUrl || crearMapsUrl(query),
-    appleMapsUrl: appleMapsUrl || crearAppleMapsUrl(query),
-    requisitos: Array.isArray(requisitos)
-      ? requisitos
-      : String(requisitos || "")
-          .split("\n")
-          .map((item) => item.trim())
-          .filter(Boolean)
-  };
+  id: `vac-${Date.now()}`,
+  sucursalId: finalSucursalId,
+  branchId: finalSucursalId,
+  tipoVacante,
+  grupo,
+  titulo,
+  area,
+  pais,
+  estado,
+  ciudad,
+  sucursal,
+  numeroTienda: numeroTienda || "",
+  direccion: direccion || "",
+  googleMapsUrl: googleMapsUrl || crearMapsUrl(query),
+  appleMapsUrl: appleMapsUrl || crearAppleMapsUrl(query),
+  lat: lat ?? null,
+  lng: lng ?? null,
+  requisitos: Array.isArray(requisitos)
+    ? requisitos
+    : String(requisitos || "")
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean)
+};
 
+  
   vacantes.push(nuevaVacante);
   guardarVacantes(vacantes);
 
