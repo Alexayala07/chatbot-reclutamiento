@@ -92,8 +92,8 @@ const sucursalesIniciales = [
     direccion: "Av. Paseo de la Victoria, Ciudad Juarez, Chihuahua",
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Wendy's%20Las%20Misiones%20Ciudad%20Juarez",
     appleMapsUrl: "https://maps.apple.com/?q=Wendy's%20Las%20Misiones%20Ciudad%20Juarez",
-    mapX: 36,
-    mapY: 28
+    lat: null,
+    lng: null
   },
   {
     id: "wendys-ejercito-nacional-ciudad-juarez",
@@ -106,8 +106,8 @@ const sucursalesIniciales = [
     direccion: "Av. Ejercito Nacional, Ciudad Juarez, Chihuahua",
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Wendy's%20Ejercito%20Nacional%20Ciudad%20Juarez",
     appleMapsUrl: "https://maps.apple.com/?q=Wendy's%20Ejercito%20Nacional%20Ciudad%20Juarez",
-    mapX: 42,
-    mapY: 36
+    lat: null,
+    lng: null
   },
   {
     id: "applebees-tecnologico-ciudad-juarez",
@@ -120,8 +120,8 @@ const sucursalesIniciales = [
     direccion: "Av. Tecnologico, Ciudad Juarez, Chihuahua",
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Applebee's%20Tecnologico%20Ciudad%20Juarez",
     appleMapsUrl: "https://maps.apple.com/?q=Applebee's%20Tecnologico%20Ciudad%20Juarez",
-    mapX: 48,
-    mapY: 44
+    lat: null,
+    lng: null
   },
   {
     id: "little-caesars-chihuahua",
@@ -134,8 +134,8 @@ const sucursalesIniciales = [
     direccion: "Chihuahua, Chihuahua",
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Little%20Caesars%20Chihuahua",
     appleMapsUrl: "https://maps.apple.com/?q=Little%20Caesars%20Chihuahua",
-    mapX: 58,
-    mapY: 48
+    lat: null,
+    lng: null
   },
   {
     id: "corporativo-chihuahua",
@@ -148,8 +148,8 @@ const sucursalesIniciales = [
     direccion: "Chihuahua, Chihuahua",
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=GA%20Hospitality%20Chihuahua",
     appleMapsUrl: "https://maps.apple.com/?q=GA%20Hospitality%20Chihuahua",
-    mapX: 66,
-    mapY: 58
+    lat: null,
+    lng: null
   },
   {
     id: "little-caesars-guadalajara",
@@ -162,8 +162,8 @@ const sucursalesIniciales = [
     direccion: "Guadalajara, Jalisco",
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Little%20Caesars%20Guadalajara",
     appleMapsUrl: "https://maps.apple.com/?q=Little%20Caesars%20Guadalajara",
-    mapX: 54,
-    mapY: 70
+    lat: null,
+    lng: null
   }
 ];
 
@@ -300,10 +300,6 @@ function leerSucursales() {
   return leerJson(sucursalesFile, sucursalesIniciales);
 }
 
-function guardarSucursales(data) {
-  guardarJson(sucursalesFile, data);
-}
-
 function normalizarTexto(texto = "") {
   return String(texto)
     .normalize("NFD")
@@ -375,11 +371,83 @@ function resolverSucursalId(vacante = {}) {
   );
 }
 
+function limpiarNumero(valor) {
+  if (valor === "" || valor === null || valor === undefined) return null;
+
+  const numero = Number(valor);
+
+  return Number.isFinite(numero) ? numero : null;
+}
+
+function construirConsultaDireccion(data = {}) {
+  return [
+    data.direccion,
+    data.sucursal,
+    data.ciudad,
+    data.estado,
+    data.pais
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+async function geocodificarDireccion(query = "") {
+  if (!query.trim()) return { lat: null, lng: null };
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "GA-Hospitality-Reclutamiento/1.0"
+      }
+    });
+
+    const data = await response.json();
+
+    if (!Array.isArray(data) || !data.length) {
+      return { lat: null, lng: null };
+    }
+
+    return {
+      lat: Number(data[0].lat),
+      lng: Number(data[0].lon)
+    };
+  } catch (error) {
+    console.error("Error geocodificando direccion:", error);
+    return { lat: null, lng: null };
+  }
+}
+
+async function resolverCoordenadas(data = {}) {
+  let lat = limpiarNumero(data.lat);
+  let lng = limpiarNumero(data.lng);
+
+  if (lat !== null && lng !== null) {
+    return { lat, lng };
+  }
+
+  const query = construirConsultaDireccion(data);
+  const coords = await geocodificarDireccion(query);
+
+  lat = limpiarNumero(coords.lat);
+  lng = limpiarNumero(coords.lng);
+
+  return { lat, lng };
+}
+
 function enriquecerVacanteConSucursal(vacante = {}) {
   const sucursales = leerSucursales();
   const sucursalId = resolverSucursalId(vacante);
   const sucursal = sucursales.find((item) => item.id === sucursalId);
-  const query = `${vacante.sucursal || sucursal?.sucursal || ""}, ${vacante.ciudad || sucursal?.ciudad || ""}, ${vacante.estado || sucursal?.estado || ""}, ${vacante.pais || sucursal?.pais || ""}`;
+
+  const query = construirConsultaDireccion({
+    direccion: vacante.direccion || sucursal?.direccion || "",
+    sucursal: vacante.sucursal || sucursal?.sucursal || "",
+    ciudad: vacante.ciudad || sucursal?.ciudad || "",
+    estado: vacante.estado || sucursal?.estado || "",
+    pais: vacante.pais || sucursal?.pais || ""
+  });
 
   return {
     ...vacante,
@@ -389,10 +457,8 @@ function enriquecerVacanteConSucursal(vacante = {}) {
     direccion: vacante.direccion || sucursal?.direccion || "",
     googleMapsUrl: vacante.googleMapsUrl || sucursal?.googleMapsUrl || crearMapsUrl(query),
     appleMapsUrl: vacante.appleMapsUrl || sucursal?.appleMapsUrl || crearAppleMapsUrl(query),
-    lat: vacante.lat ?? sucursal?.lat ?? null,
-    lng: vacante.lng ?? sucursal?.lng ?? null,
-    mapX: sucursal?.mapX,
-    mapY: sucursal?.mapY
+    lat: limpiarNumero(vacante.lat ?? sucursal?.lat ?? null),
+    lng: limpiarNumero(vacante.lng ?? sucursal?.lng ?? null)
   };
 }
 
@@ -585,8 +651,14 @@ app.get("/api/sucursales", (req, res) => {
     if (!sucursal.direccion && vacante.direccion) sucursal.direccion = vacante.direccion;
     if (!sucursal.googleMapsUrl && vacante.googleMapsUrl) sucursal.googleMapsUrl = vacante.googleMapsUrl;
     if (!sucursal.appleMapsUrl && vacante.appleMapsUrl) sucursal.appleMapsUrl = vacante.appleMapsUrl;
-    if ((sucursal.lat === null || sucursal.lat === undefined) && vacante.lat !== null && vacante.lat !== undefined) sucursal.lat = vacante.lat;
-    if ((sucursal.lng === null || sucursal.lng === undefined) && vacante.lng !== null && vacante.lng !== undefined) sucursal.lng = vacante.lng;
+
+    if ((sucursal.lat === null || sucursal.lat === undefined) && vacante.lat !== null && vacante.lat !== undefined) {
+      sucursal.lat = vacante.lat;
+    }
+
+    if ((sucursal.lng === null || sucursal.lng === undefined) && vacante.lng !== null && vacante.lng !== undefined) {
+      sucursal.lng = vacante.lng;
+    }
   });
 
   res.json(Array.from(bySucursal.values()));
@@ -835,100 +907,135 @@ app.patch("/api/postulaciones/:id/estado", verifyAdmin, (req, res) => {
   });
 });
 
-app.post("/api/vacantes", verifyAdmin, (req, res) => {
-  const vacantes = leerVacantes();
+app.post("/api/vacantes", verifyAdmin, async (req, res) => {
+  try {
+    const vacantes = leerVacantes();
 
-  const {
-  tipoVacante,
-  grupo,
-  titulo,
-  area,
-  pais,
-  estado,
-  ciudad,
-  sucursal,
-  sucursalId,
-  numeroTienda,
-  direccion,
-  googleMapsUrl,
-  appleMapsUrl,
-  lat,
-  lng,
-  requisitos
-} = req.body;
+    const {
+      tipoVacante,
+      grupo,
+      titulo,
+      area,
+      pais,
+      estado,
+      ciudad,
+      sucursal,
+      sucursalId,
+      numeroTienda,
+      direccion,
+      googleMapsUrl,
+      appleMapsUrl,
+      lat,
+      lng,
+      requisitos
+    } = req.body;
 
-  if (!tipoVacante || !grupo || !titulo || !area || !pais || !estado || !ciudad || !sucursal) {
-    return res.status(400).json({ error: "Faltan campos obligatorios." });
+    if (!tipoVacante || !grupo || !titulo || !area || !pais || !estado || !ciudad || !sucursal) {
+      return res.status(400).json({ error: "Faltan campos obligatorios." });
+    }
+
+    const finalSucursalId = sucursalId || slugify(`${grupo} ${sucursal} ${ciudad} ${estado} ${pais}`);
+    const query = construirConsultaDireccion({ direccion, sucursal, ciudad, estado, pais });
+    const coords = await resolverCoordenadas({ direccion, sucursal, ciudad, estado, pais, lat, lng });
+
+    const nuevaVacante = {
+      id: `vac-${Date.now()}`,
+      sucursalId: finalSucursalId,
+      branchId: finalSucursalId,
+      tipoVacante,
+      grupo,
+      titulo,
+      area,
+      pais,
+      estado,
+      ciudad,
+      sucursal,
+      numeroTienda: numeroTienda || "",
+      direccion: direccion || "",
+      googleMapsUrl: googleMapsUrl || crearMapsUrl(query),
+      appleMapsUrl: appleMapsUrl || crearAppleMapsUrl(query),
+      lat: coords.lat,
+      lng: coords.lng,
+      requisitos: Array.isArray(requisitos)
+        ? requisitos
+        : String(requisitos || "")
+            .split("\n")
+            .map((item) => item.trim())
+            .filter(Boolean)
+    };
+
+    vacantes.push(nuevaVacante);
+    guardarVacantes(vacantes);
+
+    res.json({
+      ok: true,
+      message: "Vacante creada correctamente.",
+      vacante: nuevaVacante
+    });
+  } catch (error) {
+    console.error("Error creando vacante:", error);
+    res.status(500).json({ error: "No fue posible crear la vacante." });
   }
-
-  const finalSucursalId = sucursalId || slugify(`${grupo} ${sucursal} ${ciudad} ${estado} ${pais}`);
-  const query = `${direccion || sucursal}, ${ciudad}, ${estado}, ${pais}`;
-
-  const nuevaVacante = {
-  id: `vac-${Date.now()}`,
-  sucursalId: finalSucursalId,
-  branchId: finalSucursalId,
-  tipoVacante,
-  grupo,
-  titulo,
-  area,
-  pais,
-  estado,
-  ciudad,
-  sucursal,
-  numeroTienda: numeroTienda || "",
-  direccion: direccion || "",
-  googleMapsUrl: googleMapsUrl || crearMapsUrl(query),
-  appleMapsUrl: appleMapsUrl || crearAppleMapsUrl(query),
-  lat: lat ?? null,
-  lng: lng ?? null,
-  requisitos: Array.isArray(requisitos)
-    ? requisitos
-    : String(requisitos || "")
-        .split("\n")
-        .map((item) => item.trim())
-        .filter(Boolean)
-};
-
-  
-  vacantes.push(nuevaVacante);
-  guardarVacantes(vacantes);
-
-  res.json({
-    ok: true,
-    message: "Vacante creada correctamente.",
-    vacante: nuevaVacante
-  });
 });
 
-app.put("/api/vacantes/:id", verifyAdmin, (req, res) => {
-  const vacantes = leerVacantes();
-  const { id } = req.params;
-  const index = vacantes.findIndex((v) => v.id === id);
+app.put("/api/vacantes/:id", verifyAdmin, async (req, res) => {
+  try {
+    const vacantes = leerVacantes();
+    const { id } = req.params;
+    const index = vacantes.findIndex((v) => v.id === id);
 
-  if (index === -1) {
-    return res.status(404).json({ error: "Vacante no encontrada." });
+    if (index === -1) {
+      return res.status(404).json({ error: "Vacante no encontrada." });
+    }
+
+    const actual = vacantes[index];
+    const merged = {
+      ...actual,
+      ...req.body,
+      id
+    };
+
+    const coords = await resolverCoordenadas({
+      direccion: merged.direccion,
+      sucursal: merged.sucursal,
+      ciudad: merged.ciudad,
+      estado: merged.estado,
+      pais: merged.pais,
+      lat: merged.lat,
+      lng: merged.lng
+    });
+
+    const query = construirConsultaDireccion({
+      direccion: merged.direccion,
+      sucursal: merged.sucursal,
+      ciudad: merged.ciudad,
+      estado: merged.estado,
+      pais: merged.pais
+    });
+
+    vacantes[index] = {
+      ...merged,
+      branchId: merged.sucursalId || merged.branchId || resolverSucursalId(merged),
+      sucursalId: merged.sucursalId || merged.branchId || resolverSucursalId(merged),
+      numeroTienda: merged.numeroTienda || "",
+      direccion: merged.direccion || "",
+      googleMapsUrl: merged.googleMapsUrl || crearMapsUrl(query),
+      appleMapsUrl: merged.appleMapsUrl || crearAppleMapsUrl(query),
+      lat: coords.lat,
+      lng: coords.lng
+    };
+
+    guardarVacantes(vacantes);
+
+    res.json({
+      ok: true,
+      message: "Vacante actualizada correctamente.",
+      vacante: vacantes[index]
+    });
+  } catch (error) {
+    console.error("Error actualizando vacante:", error);
+    res.status(500).json({ error: "No fue posible actualizar la vacante." });
   }
-
-  vacantes[index] = {
-  ...vacantes[index],
-  ...req.body,
-  id,
-  lat: req.body.lat ?? vacantes[index].lat ?? null,
-  lng: req.body.lng ?? vacantes[index].lng ?? null,
-  numeroTienda: req.body.numeroTienda || vacantes[index].numeroTienda || "",
-  direccion: req.body.direccion || vacantes[index].direccion || "",
-  googleMapsUrl: req.body.googleMapsUrl || vacantes[index].googleMapsUrl || "",
-  appleMapsUrl: req.body.appleMapsUrl || vacantes[index].appleMapsUrl || ""
-};
-
-  guardarVacantes(vacantes);
-
-  res.json({
-    ok: true,
-    message: "Vacante actualizada correctamente.",
-    vacante: vacantes[index]
-  });
 });
 
 app.delete("/api/vacantes/:id", verifyAdmin, (req, res) => {
