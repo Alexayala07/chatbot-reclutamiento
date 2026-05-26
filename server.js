@@ -464,13 +464,31 @@ function enriquecerVacanteConSucursal(vacante = {}) {
 
 const ubicaciones = {
   Mexico: {
-    Chihuahua: ["Ciudad Juarez", "Chihuahua"],
-    "Baja California": ["Mexicali"],
-    Jalisco: ["Guadalajara"]
+    Chihuahua: [
+      "Ciudad Juarez",
+      "Chihuahua"
+    ],
+    "Baja California": [
+      "Mexicali"
+    ],
+    Jalisco: [
+      "Guadalajara"
+    ]
   },
   "Estados Unidos": {
-    Texas: ["El Paso"]
+    Texas: [
+      "El Paso"
+    ]
   }
+};
+
+const coordenadasBaseCiudad = {
+  "ciudad juarez": { lat: 31.6904, lng: -106.4245 },
+  "juarez": { lat: 31.6904, lng: -106.4245 },
+  "chihuahua": { lat: 28.6320, lng: -106.0691 },
+  "mexicali": { lat: 32.6245, lng: -115.4523 },
+  "guadalajara": { lat: 20.6597, lng: -103.3496 },
+  "el paso": { lat: 31.7619, lng: -106.4850 }
 };
 
 const storage = multer.diskStorage({
@@ -995,6 +1013,11 @@ app.put("/api/vacantes/:id", verifyAdmin, async (req, res) => {
       id
     };
 
+    const ciudadKey = normalizarTexto(data.ciudad || "");
+
+    if (coordenadasBaseCiudad[ciudadKey]) {
+      return coordenadasBaseCiudad[ciudadKey];
+    }
     const coords = await resolverCoordenadas({
       direccion: merged.direccion,
       sucursal: merged.sucursal,
