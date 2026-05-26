@@ -288,14 +288,21 @@ function guardarJson(filePath, data) {
 async function leerPostulaciones() {
   if (!db) return leerJson(postulacionesFile, []);
 
-  const snapshot = await db.collection(POSTULACIONES_COLLECTION).orderBy("fechaRegistro", "desc").get();
+  const snapshot = await db.collection(POSTULACIONES_COLLECTION).get();
 
-  return snapshot.docs.map((doc) => ({
+  const postulaciones = snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data()
   }));
-}
 
+  postulaciones.sort((a, b) => {
+    const fechaA = new Date(a.fechaRegistro || 0).getTime();
+    const fechaB = new Date(b.fechaRegistro || 0).getTime();
+    return fechaB - fechaA;
+  });
+
+  return postulaciones;
+}
 async function guardarPostulacion(postulacion) {
   if (!db) {
     const postulaciones = leerJson(postulacionesFile, []);
@@ -1014,7 +1021,9 @@ app.get("/api/postulaciones", verifyAdmin, async (req, res) => {
     res.json(postulaciones);
   } catch (error) {
     console.error("Error cargando postulaciones:", error);
-    res.status(500).json({ error: "No fue posible cargar postulaciones." });
+    res.status(500).json({
+      error: error.message || "No fue posible cargar postulaciones."
+    });
   }
 });
 
