@@ -441,7 +441,7 @@ function createUserIcon() {
   });
 }
 
-function renderMapMarkers(filteredBranches) {
+function renderMapMarkers(filteredBranches, ajustarVista = true) {
   if (!map || !branchLayer) return;
 
   branchLayer.clearLayers();
@@ -482,12 +482,12 @@ function renderMapMarkers(filteredBranches) {
     });
   });
 
-  if (bounds.length) {
-    map.fitBounds(bounds, {
-      padding: [35, 35],
-      maxZoom: 13
-    });
-  }
+  if (bounds.length && ajustarVista) {
+  map.fitBounds(bounds, {
+    padding: [35, 35],
+    maxZoom: 13
+  });
+}
 }
 
 function getFilteredBranches() {
@@ -565,24 +565,58 @@ function renderBranches() {
   renderSelectedBranch();
 }
 
+function renderBranchListOnly() {
+  if (!branchList) return;
+
+  const filteredBranches = getFilteredBranches();
+  branchList.innerHTML = "";
+
+  filteredBranches.forEach((branch) => {
+    const jobsCount = getBranchVacancies(branch.id).length;
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = `branch-item ${branch.id === selectedBranchId ? "is-active" : ""}`;
+
+    let distanceHtml = "";
+
+    if (branch.distanceKm !== null && branch.distanceKm !== undefined) {
+      distanceHtml = `<span class="branch-distance">${branch.distanceKm.toFixed(1)} km aprox.</span>`;
+    }
+
+    item.innerHTML = `
+      <strong>${escapeHtml(branch.nombre)}</strong>
+      <span>${escapeHtml(branch.marca || "")} - ${escapeHtml(branch.ciudad || "")}, ${escapeHtml(branch.estado || "")}</span>
+      <span>${escapeHtml(branch.direccion || "Dirección no registrada")}</span>
+      <span>${jobsCount} vacante(s) disponible(s)</span>
+      ${distanceHtml}
+    `;
+
+    item.addEventListener("click", () => selectBranch(branch.id, true));
+    branchList.appendChild(item);
+  });
+
+  renderMapMarkers(filteredBranches, false);
+}
+
+
 function selectBranch(branchId, moveMap = true) {
   selectedBranchId = branchId;
 
   const branch = branches.find((item) => item.id === branchId);
 
   if (branch && map && hasValidCoords(branch) && moveMap) {
-    map.setView(getBranchLatLng(branch), 15);
+    map.setView(getBranchLatLng(branch), 14);
   }
 
-  renderBranches();
-
-  if (vacancyBoard) vacancyBoard.classList.remove("hidden");
-  if (selectedBranchMapLink) selectedBranchMapLink.classList.remove("hidden");
-  if (selectedBranchAppleMapLink) selectedBranchAppleMapLink.classList.remove("hidden");
+  renderBranchListOnly();
+  renderSelectedBranch();
 
   if (vacancyBoard) {
-    vacancyBoard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    vacancyBoard.classList.remove("hidden");
   }
+
+  if (selectedBranchMapLink) selectedBranchMapLink.classList.remove("hidden");
+  if (selectedBranchAppleMapLink) selectedBranchAppleMapLink.classList.remove("hidden");
 }
 
 function closeBranchVacancies() {
@@ -592,7 +626,7 @@ function closeBranchVacancies() {
   if (selectedBranchMapLink) selectedBranchMapLink.classList.add("hidden");
   if (selectedBranchAppleMapLink) selectedBranchAppleMapLink.classList.add("hidden");
 
-  renderBranches();
+  renderBranchListOnly();
 }
 
 function getBranchVacancies(branchId) {
