@@ -303,9 +303,53 @@ if (form) {
     );
   });
 }
-
-function init() {
+async function init() {
   renderMessages();
+  await revisarAplicacionDesdeUrl();
+}
+
+async function revisarAplicacionDesdeUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const vacanteId = params.get("aplicar");
+
+  if (!vacanteId) return;
+
+  try {
+    const response = await fetch(`${API_URL}/api/vacantes`);
+    const vacantes = await response.json();
+
+    const vacante = vacantes.find((item) => item.id === vacanteId);
+
+    if (!vacante) {
+      openChat();
+      addAssistantText("No pude encontrar la vacante seleccionada. Puedes buscar otra vacante desde ubicaciones.");
+      return;
+    }
+
+    applicationFlow.active = true;
+    applicationFlow.mode = "branch_vacancy_application";
+    applicationFlow.cvFile = null;
+    applicationFlow.selectedVacancy = vacante;
+
+    resetChatHistory();
+    openChat();
+
+    addAssistantText(
+      `Excelente. Iniciaremos tu postulación para:\n\n${vacante.titulo}\n${vacante.sucursal || ""}\n${vacante.direccion || ""}\n\nAdjunta tu CV en PDF o imagen JPG/PNG para continuar.`
+    );
+
+    if (input) {
+      input.placeholder = "Escribe tu nombre, teléfono o dudas...";
+    }
+
+    if (chatCvFile) {
+      chatCvFile.setAttribute("accept", ".pdf,.jpg,.jpeg,.png,application/pdf,image/*");
+    }
+
+    window.history.replaceState({}, document.title, "index.html#chatbot-toggle");
+  } catch (error) {
+    console.error("Error cargando vacante desde URL:", error);
+  }
 }
 
 init();

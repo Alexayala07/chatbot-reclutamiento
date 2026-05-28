@@ -496,9 +496,12 @@ function renderSelectedBranch(branch) {
         <strong>${escapeHtml(vacancy.grupo || branch.marca || "GA Hospitality")}</strong>
       </p>
 
-      <a class="btn btn--primary" href="index.html#chatbot-toggle">
-        Aplicar
-      </a>
+      <a
+  class="btn btn--primary"
+  href="index.html?aplicar=${encodeURIComponent(vacancy.id)}#chatbot-toggle"
+>
+  Aplicar
+</a>
     `;
 
     branchVacancies.appendChild(card);
