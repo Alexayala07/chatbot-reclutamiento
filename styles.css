@@ -1234,3 +1234,103 @@ textarea:focus {
   }
 }
 
+/* =========================
+   TARJETAS DE VACANTES
+========================= */
+
+.vacantes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.vacante-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px;
+  overflow: hidden;
+  min-height: 580px;
+  transition: all .25s ease;
+}
+
+.vacante-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(255,255,255,0.18);
+}
+
+.vacante-card__brand {
+  height: 180px;
+  background: rgba(255,255,255,0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 25px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.vacante-card__brand-img {
+  width: auto;
+  height: auto;
+  max-width: 170px;
+  max-height: 80px;
+  object-fit: contain;
+  display: block;
+}
+
+.vacante-card__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 28px;
+}
+
+.vacante-card__body h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.6rem;
+  color: #fff;
+}
+
+.vacante-card__body p {
+  margin: 10px 0;
+  color: #d9d9d9;
+  line-height: 1.6;
+}
+
+.vacante-card__body strong {
+  color: #fff;
+}
+
+.vacante-card__body .btn {
+  margin-top: auto;
+}
+.vacantes-page {
+  margin-top: 32px;
+}
+
+.hero__actions--compact {
+  margin-top: 0 !important;
+}
+/* =========================
+   TAGS REQUISITOS VACANTES
+========================= */
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+  margin-bottom: 24px;
+}
+
+.tags span {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  color: #9adfff;
+  font-size: 12px;
+  font-weight: 600;
+}
