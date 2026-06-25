@@ -661,19 +661,193 @@ async function sugerirVacantesBasicas(texto = "", tipoVacante = "") {
   const lower = normalizarTexto(texto);
   const vacantes = await leerVacantes();
 
-  return vacantes
-    .map(enriquecerVacanteConSucursal)
-    .filter((v) => !tipoVacante || v.tipoVacante === tipoVacante)
-    .map((v) => {
-      let score = 0;
-      const full = normalizarTexto(`${v.titulo} ${v.area} ${v.grupo} ${(v.requisitos || []).join(" ")} ${v.sucursal}`);
+  const gruposPerfil = {
+    sistemas: [
+      "sistemas",
+      "soporte",
+      "tecnico",
+      "tecnologias de la informacion",
+      "ti",
+      "it",
+      "redes",
+      "cisco",
+      "python",
+      "react",
+      "angular",
+      "mysql",
+      "mongodb",
+      "docker",
+      "git",
+      "software",
+      "programacion",
+      "desarrollo",
+      "cybersecurity",
+      "seguridad informatica"
+    ],
+    monitoreo: [
+      "monitoreo",
+      "monitorista",
+      "camaras",
+      "cctv",
+      "reportes",
+      "atencion al detalle",
+      "seguridad",
+      "vigilancia"
+    ],
+    rh: [
+      "rh",
+      "recursos humanos",
+      "reclutamiento",
+      "entrevistas",
+      "seleccion",
+      "capital humano",
+      "seguimiento",
+      "personal"
+    ],
+    contabilidad: [
+      "contabilidad",
+      "contable",
+      "facturacion",
+      "excel",
+      "administracion",
+      "cuentas",
+      "pagos",
+      "bancos"
+    ],
+    servicio: [
+      "cliente",
+      "servicio",
+      "ventas",
+      "atencion al cliente",
+      "hostess",
+      "mesero",
+      "mostrador",
+      "caja",
+      "cajero"
+    ],
+    cocina: [
+      "cocina",
+      "alimentos",
+      "preparacion",
+      "chef",
+      "linea",
+      "parrilla",
+      "sushi",
+      "sushero",
+      "limpieza",
+      "restaurante"
+    ],
+    proyectos: [
+      "proyectos",
+      "construccion",
+      "planeacion",
+      "seguimiento",
+      "coordinacion",
+      "obra"
+    ],
+    logistica: [
+      "logistica",
+      "importacion",
+      "exportacion",
+      "aduana",
+      "pedimentos",
+      "almacen",
+      "inventario",
+      "transporte",
+      "documental"
+    ]
+  };
 
-      ["cliente", "servicio", "ventas", "caja", "cajero", "cocina", "restaurante", "excel", "contabilidad", "reclutamiento", "rh", "sistemas"].forEach((k) => {
-        if (lower.includes(k) && full.includes(k)) score += 25;
+  function scoreVacante(vacante) {
+    let score = 0;
+    const motivos = [];
+
+    const fullVacante = normalizarTexto(`
+      ${vacante.titulo || ""}
+      ${vacante.area || ""}
+      ${vacante.grupo || ""}
+      ${(vacante.requisitos || []).join(" ")}
+      ${vacante.sucursal || ""}
+      ${vacante.tipoVacante || ""}
+    `);
+
+    if (tipoVacante && vacante.tipoVacante === tipoVacante) {
+      score += 15;
+      motivos.push("Coincide con el tipo de vacante recomendado.");
+    }
+
+    if (lower.includes(normalizarTexto(vacante.titulo || ""))) {
+      score += 35;
+      motivos.push(`Coincide con el puesto ${vacante.titulo}.`);
+    }
+
+    if (lower.includes(normalizarTexto(vacante.area || ""))) {
+      score += 25;
+      motivos.push(`Coincide con el área ${vacante.area}.`);
+    }
+
+    Object.entries(gruposPerfil).forEach(([perfil, keywords]) => {
+      let hits = 0;
+
+      keywords.forEach((keyword) => {
+        const k = normalizarTexto(keyword);
+
+        if (lower.includes(k) && fullVacante.includes(k)) {
+          hits += 1;
+        }
       });
 
-      return { ...v, score };
-    })
+      if (hits > 0) {
+        score += hits * 18;
+        motivos.push(`Coincidencia con perfil de ${perfil}.`);
+      }
+    });
+
+    if (
+      lower.includes("sistemas") ||
+      lower.includes("soporte") ||
+      lower.includes("software") ||
+      lower.includes("programacion") ||
+      lower.includes("redes") ||
+      lower.includes("cisco")
+    ) {
+      if (
+        fullVacante.includes("sistemas") ||
+        fullVacante.includes("soporte") ||
+        fullVacante.includes("monitoreo")
+      ) {
+        score += 45;
+        motivos.push("Tu perfil técnico puede adaptarse a Sistemas o Monitoreo.");
+      }
+    }
+
+    if (
+      lower.includes("sin experiencia") ||
+      lower.includes("primer empleo") ||
+      lower.includes("estudiante")
+    ) {
+      if (
+        fullVacante.includes("cajero") ||
+        fullVacante.includes("servicio") ||
+        fullVacante.includes("auxiliar") ||
+        fullVacante.includes("mostrador")
+      ) {
+        score += 20;
+        motivos.push("Puede ser una opción accesible para iniciar experiencia laboral.");
+      }
+    }
+
+    return {
+      ...vacante,
+      score,
+      motivoCoincidencia: [...new Set(motivos)].slice(0, 3)
+    };
+  }
+
+  return vacantes
+    .map(enriquecerVacanteConSucursal)
+    .filter((v) => !tipoVacante || v.tipoVacante === tipoVacante || tipoVacante === "mixta")
+    .map(scoreVacante)
     .filter((v) => v.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
@@ -686,7 +860,10 @@ async function analizarCvConIA(cvTexto = "") {
       habilidadesDetectadas: [],
       perfilRecomendado: "",
       palabrasClave: [],
-      areasCompatibles: []
+      areasCompatibles: [],
+      puestosSugeridos: [],
+      nivelExperiencia: "",
+      tipoPerfil: ""
     };
   }
 
@@ -694,10 +871,44 @@ async function analizarCvConIA(cvTexto = "") {
     const completion = await openai.chat.completions.create({
       model: "gpt-5-mini",
       messages: [
-        { role: "system", content: "Responde unicamente JSON valido, sin markdown." },
+        {
+          role: "system",
+          content: `
+Eres un especialista senior en reclutamiento y selección para GA Hospitality.
+
+Tu tarea es analizar CVs y devolver SOLO JSON válido, sin markdown.
+
+Debes identificar:
+- resumen profesional
+- habilidades técnicas y blandas
+- tipo de perfil: operativo, administrativo, sistemas, soporte, cocina, servicio, ventas, RH, contabilidad, monitoreo, proyectos u otro
+- nivel de experiencia
+- puestos sugeridos
+- palabras clave para comparar contra vacantes
+- áreas compatibles
+
+No inventes experiencia. Si algo no aparece en el CV, no lo agregues.
+`
+        },
         {
           role: "user",
-          content: `Analiza este CV para reclutamiento y devuelve JSON con resumen, habilidadesDetectadas, perfilRecomendado, palabrasClave y areasCompatibles.\n\nCV:\n${cvTexto.slice(0, 12000)}`
+          content: `
+Analiza este CV y devuelve JSON válido con esta estructura exacta:
+
+{
+  "resumen": "resumen profesional breve y claro",
+  "habilidadesDetectadas": ["..."],
+  "perfilRecomendado": "operativa, administrativa o mixta",
+  "tipoPerfil": "sistemas, soporte, cocina, servicio, ventas, RH, contabilidad, monitoreo, proyectos, administrativo, operativo u otro",
+  "nivelExperiencia": "sin experiencia, junior, intermedio, senior o no determinado",
+  "puestosSugeridos": ["..."],
+  "palabrasClave": ["..."],
+  "areasCompatibles": ["..."]
+}
+
+CV:
+${cvTexto.slice(0, 12000)}
+`
         }
       ]
     });
@@ -709,6 +920,9 @@ async function analizarCvConIA(cvTexto = "") {
       resumen: parsed.resumen || "CV recibido correctamente.",
       habilidadesDetectadas: Array.isArray(parsed.habilidadesDetectadas) ? parsed.habilidadesDetectadas : [],
       perfilRecomendado: parsed.perfilRecomendado || "",
+      tipoPerfil: parsed.tipoPerfil || "",
+      nivelExperiencia: parsed.nivelExperiencia || "",
+      puestosSugeridos: Array.isArray(parsed.puestosSugeridos) ? parsed.puestosSugeridos : [],
       palabrasClave: Array.isArray(parsed.palabrasClave) ? parsed.palabrasClave : [],
       areasCompatibles: Array.isArray(parsed.areasCompatibles) ? parsed.areasCompatibles : []
     };
@@ -716,9 +930,12 @@ async function analizarCvConIA(cvTexto = "") {
     console.error("Error IA CV:", error);
 
     return {
-      resumen: "CV recibido correctamente. El analisis automatico no estuvo disponible en este momento.",
+      resumen: "CV recibido correctamente. El análisis automático no estuvo disponible en este momento.",
       habilidadesDetectadas: [],
       perfilRecomendado: "",
+      tipoPerfil: "",
+      nivelExperiencia: "",
+      puestosSugeridos: [],
       palabrasClave: [],
       areasCompatibles: []
     };
@@ -876,12 +1093,45 @@ app.post("/api/analizar-cv", upload.fields([{ name: "cvFile", maxCount: 1 }]), a
 
     const cvTexto = await extraerTextoPdf(cvFile.path);
     const analisisIA = await analizarCvConIA(cvTexto);
-    const tipoSugerido = normalizarTexto(analisisIA.perfilRecomendado).includes("administr") ? "administrativa" : "";
 
-    const sugerenciasIA = await sugerirVacantesBasicas(
-      `${cvTexto} ${analisisIA.habilidadesDetectadas.join(" ")} ${analisisIA.palabrasClave.join(" ")} ${analisisIA.areasCompatibles.join(" ")}`,
-      tipoSugerido
-    );
+    let tipoSugerido = "";
+
+const perfilNormalizado = normalizarTexto(analisisIA.perfilRecomendado);
+const tipoPerfilNormalizado = normalizarTexto(analisisIA.tipoPerfil);
+
+if (perfilNormalizado.includes("administr")) {
+  tipoSugerido = "administrativa";
+}
+
+if (perfilNormalizado.includes("operativ")) {
+  tipoSugerido = "operativa";
+}
+
+if (
+  tipoPerfilNormalizado.includes("sistemas") ||
+  tipoPerfilNormalizado.includes("soporte") ||
+  tipoPerfilNormalizado.includes("monitoreo") ||
+  tipoPerfilNormalizado.includes("contabilidad") ||
+  tipoPerfilNormalizado.includes("rh") ||
+  tipoPerfilNormalizado.includes("proyectos")
+) {
+  tipoSugerido = "administrativa";
+}
+
+
+  const sugerenciasIA = await sugerirVacantesBasicas(
+  `
+  ${cvTexto}
+  ${analisisIA.resumen}
+  ${analisisIA.habilidadesDetectadas.join(" ")}
+  ${analisisIA.palabrasClave.join(" ")}
+  ${analisisIA.areasCompatibles.join(" ")}
+  ${analisisIA.puestosSugeridos.join(" ")}
+  ${analisisIA.tipoPerfil}
+  ${analisisIA.nivelExperiencia}
+  `,
+  tipoSugerido
+);     
 
     res.json({
       ok: true,
@@ -892,6 +1142,9 @@ app.post("/api/analizar-cv", upload.fields([{ name: "cvFile", maxCount: 1 }]), a
         resumenIA: analisisIA.resumen,
         habilidadesDetectadas: analisisIA.habilidadesDetectadas,
         perfilRecomendado: analisisIA.perfilRecomendado,
+        tipoPerfil: analisisIA.tipoPerfil,
+        nivelExperiencia: analisisIA.nivelExperiencia,
+        puestosSugeridos: analisisIA.puestosSugeridos,
         palabrasClave: analisisIA.palabrasClave,
         areasCompatibles: analisisIA.areasCompatibles,
         sugerenciasIA
