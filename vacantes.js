@@ -4,9 +4,8 @@ const vacantesResultados = document.getElementById("vacantesResultados");
 const vacantesStatus = document.getElementById("vacantesStatus");
 const vacantesResumenFiltros = document.getElementById("vacantesResumenFiltros");
 
-/* =========================
-   IMÁGENES POR MARCA
-========================= */
+const CACHE_TIME_MS = 5 * 60 * 1000;
+
 const BRAND_IMAGES = {
   "applebee's": "/img/Applebees.png",
   "ardeo": "/img/ardeo.png",
@@ -17,9 +16,6 @@ const BRAND_IMAGES = {
   "yoko": "/img/yoko.png"
 };
 
-/* =========================
-   HELPERS
-========================= */
 function normalizeText(text = "") {
   return String(text)
     .normalize("NFD")
@@ -35,37 +31,13 @@ function getBrandImage(grupo = "", tipoVacante = "") {
   const normalizedGrupo = normalizeText(grupo);
   const normalizedTipo = normalizeText(tipoVacante);
 
-  if (normalizedTipo === "administrativa") {
-    return BRAND_IMAGES["ga hospitality"];
-  }
-
-  if (normalizedGrupo.includes("applebee")) {
-    return BRAND_IMAGES["applebee's"];
-  }
-
-  if (normalizedGrupo.includes("ardeo")) {
-    return BRAND_IMAGES["ardeo"];
-  }
-
-  if (normalizedGrupo.includes("great american")) {
-    return BRAND_IMAGES["great american"];
-  }
-
-  if (normalizedGrupo.includes("little caesar")) {
-    return BRAND_IMAGES["little caesars"];
-  }
-
-  if (normalizedGrupo.includes("wendy")) {
-    return BRAND_IMAGES["wendy's"];
-  }
-
-  if (normalizedGrupo.includes("yoko")) {
-    return BRAND_IMAGES["yoko"];
-  }
-
-  if (normalizedGrupo.includes("ga hospitality")) {
-    return BRAND_IMAGES["ga hospitality"];
-  }
+  if (normalizedTipo === "administrativa") return BRAND_IMAGES["ga hospitality"];
+  if (normalizedGrupo.includes("applebee")) return BRAND_IMAGES["applebee's"];
+  if (normalizedGrupo.includes("ardeo")) return BRAND_IMAGES["ardeo"];
+  if (normalizedGrupo.includes("great american")) return BRAND_IMAGES["great american"];
+  if (normalizedGrupo.includes("little caesar")) return BRAND_IMAGES["little caesars"];
+  if (normalizedGrupo.includes("wendy")) return BRAND_IMAGES["wendy's"];
+  if (normalizedGrupo.includes("yoko")) return BRAND_IMAGES["yoko"];
 
   return BRAND_IMAGES["ga hospitality"];
 }
@@ -81,42 +53,73 @@ function getSearchParams() {
   };
 }
 
+function buildApiParams(filters) {
+  const params = new URLSearchParams();
+
+  if (filters.tipoVacante) params.set("tipoVacante", filters.tipoVacante);
+  if (filters.pais) params.set("pais", filters.pais);
+  if (filters.estado) params.set("estado", filters.estado);
+  if (filters.ciudad) params.set("ciudad", filters.ciudad);
+
+  return params;
+}
+
 function buildSummaryText(filters) {
   const parts = [];
 
-  if (filters.tipoVacante) {
-    parts.push(`Tipo: ${filters.tipoVacante}`);
-  }
+  if (filters.tipoVacante) parts.push(`Tipo: ${filters.tipoVacante}`);
+  if (filters.pais) parts.push(`País: ${filters.pais}`);
+  if (filters.estado) parts.push(`Estado: ${filters.estado}`);
+  if (filters.ciudad) parts.push(`Ciudad: ${filters.ciudad}`);
 
-  if (filters.pais) {
-    parts.push(`País: ${filters.pais}`);
-  }
-
-  if (filters.estado) {
-    parts.push(`Estado: ${filters.estado}`);
-  }
-
-  if (filters.ciudad) {
-    parts.push(`Ciudad: ${filters.ciudad}`);
-  }
-
-  if (!parts.length) {
-    return "Mostrando todas las vacantes disponibles.";
-  }
-
-  return `Filtros aplicados: ${parts.join(" | ")}`;
+  return parts.length
+    ? `Filtros aplicados: ${parts.join(" | ")}`
+    : "Mostrando todas las vacantes disponibles.";
 }
 
 function setStatus(message, show = true) {
   if (!vacantesStatus) return;
-
   vacantesStatus.textContent = message;
   vacantesStatus.classList.toggle("hidden", !show);
 }
 
-/* =========================
-   RENDER VACANTES
-========================= */
+function getCacheKey(params) {
+  return `vacantes_cache_${params.toString() || "all"}`;
+}
+
+function getCachedVacantes(cacheKey) {
+  try {
+    const raw = sessionStorage.getItem(cacheKey);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    const isFresh = Date.now() - parsed.timestamp < CACHE_TIME_MS;
+
+    if (!isFresh) {
+      sessionStorage.removeItem(cacheKey);
+      return null;
+    }
+
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedVacantes(cacheKey, data) {
+  try {
+    sessionStorage.setItem(
+      cacheKey,
+      JSON.stringify({
+        timestamp: Date.now(),
+        data
+      })
+    );
+  } catch {
+    // Si el navegador no permite sessionStorage, no detenemos el flujo.
+  }
+}
+
 function renderVacantes(vacantes = []) {
   if (!vacantesResultados) return;
 
@@ -131,8 +134,13 @@ function renderVacantes(vacantes = []) {
     return;
   }
 
+  const fragment = document.createDocumentFragment();
+
   vacantes.forEach((vacante) => {
     const brandImage = getBrandImage(vacante.grupo, vacante.tipoVacante);
+    const requisitos = Array.isArray(vacante.requisitos)
+      ? vacante.requisitos.slice(0, 4)
+      : [];
 
     const card = document.createElement("article");
     card.className = "vacante-card";
@@ -143,6 +151,7 @@ function renderVacantes(vacantes = []) {
           src="${brandImage}"
           alt="${vacante.grupo || "GA Hospitality"}"
           class="vacante-card__brand-img"
+          loading="lazy"
           onerror="this.src='/img/gaho.png'"
         />
       </div>
@@ -157,11 +166,7 @@ function renderVacantes(vacantes = []) {
         <p><strong>Sucursal:</strong> ${vacante.sucursal || "-"}</p>
 
         <div class="tags">
-          ${
-            Array.isArray(vacante.requisitos)
-              ? vacante.requisitos.map((req) => `<span>${req}</span>`).join("")
-              : ""
-          }
+          ${requisitos.map((req) => `<span>${req}</span>`).join("")}
         </div>
 
         <button class="btn btn--secondary vacante-interest-btn" data-id="${vacante.id}">
@@ -170,8 +175,10 @@ function renderVacantes(vacantes = []) {
       </div>
     `;
 
-    vacantesResultados.appendChild(card);
+    fragment.appendChild(card);
   });
+
+  vacantesResultados.appendChild(fragment);
 
   document.querySelectorAll(".vacante-interest-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -187,36 +194,25 @@ function renderVacantes(vacantes = []) {
   });
 }
 
-/* =========================
-   CARGAR VACANTES FILTRADAS
-========================= */
 async function cargarVacantesFiltradas() {
   const filters = getSearchParams();
+  const params = buildApiParams(filters);
+  const cacheKey = getCacheKey(params);
 
   if (vacantesResumenFiltros) {
     vacantesResumenFiltros.textContent = buildSummaryText(filters);
   }
 
+  const cachedData = getCachedVacantes(cacheKey);
+
+  if (cachedData) {
+    renderVacantes(cachedData);
+    setStatus("", false);
+    return;
+  }
+
   try {
     setStatus("Cargando vacantes...");
-
-    const params = new URLSearchParams();
-
-    if (filters.tipoVacante) {
-      params.set("tipoVacante", filters.tipoVacante);
-    }
-
-    if (filters.pais) {
-      params.set("pais", filters.pais);
-    }
-
-    if (filters.estado) {
-      params.set("estado", filters.estado);
-    }
-
-    if (filters.ciudad) {
-      params.set("ciudad", filters.ciudad);
-    }
 
     const response = await fetch(`${API_URL}/api/vacantes?${params.toString()}`);
     const data = await response.json();
@@ -225,7 +221,10 @@ async function cargarVacantesFiltradas() {
       throw new Error(data.error || "No fue posible cargar las vacantes.");
     }
 
-    renderVacantes(Array.isArray(data) ? data : []);
+    const vacantes = Array.isArray(data) ? data : [];
+
+    setCachedVacantes(cacheKey, vacantes);
+    renderVacantes(vacantes);
     setStatus("", false);
   } catch (error) {
     console.error("Error cargando vacantes:", error);
@@ -233,7 +232,4 @@ async function cargarVacantesFiltradas() {
   }
 }
 
-/* =========================
-   INIT
-========================= */
 cargarVacantesFiltradas();
