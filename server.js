@@ -46,6 +46,8 @@ if (db) {
 
 const VACANTES_COLLECTION = "vacantes";
 const POSTULACIONES_COLLECTION = "postulaciones";
+const ENTREVISTAS_COLLECTION = "entrevistas";
+const entrevistasFile = path.join(dataDir, "entrevistas.json");
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .split(",")
@@ -276,6 +278,10 @@ if (!fs.existsSync(vacantesFile)) {
   fs.writeFileSync(vacantesFile, JSON.stringify(vacantesIniciales, null, 2), "utf-8");
 }
 
+if (!fs.existsSync(entrevistasFile)) {
+  fs.writeFileSync(entrevistasFile, "[]", "utf-8");
+}
+
 function leerJson(filePath, fallback = []) {
   try {
     const raw = fs.readFileSync(filePath, "utf-8");
@@ -337,6 +343,57 @@ async function actualizarPostulacion(id, data) {
   }
 
   await db.collection(POSTULACIONES_COLLECTION).doc(id).update(data);
+}
+
+async function leerEntrevistas() {
+  if (!db) return leerJson(entrevistasFile, []);
+
+  const snapshot = await db.collection(ENTREVISTAS_COLLECTION).get();
+
+  const entrevistas = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  entrevistas.sort((a, b) => {
+    const fechaA = new Date(`${a.fecha || ""}T${a.hora || "00:00"}`).getTime();
+    const fechaB = new Date(`${b.fecha || ""}T${b.hora || "00:00"}`).getTime();
+    return fechaA - fechaB;
+  });
+
+  return entrevistas;
+}
+
+async function guardarEntrevista(entrevista) {
+  if (!db) {
+    const entrevistas = leerJson(entrevistasFile, []);
+    entrevistas.push(entrevista);
+    guardarJson(entrevistasFile, entrevistas);
+    return;
+  }
+
+  await db.collection(ENTREVISTAS_COLLECTION).doc(entrevista.id).set(entrevista);
+}
+
+async function actualizarEntrevista(id, data) {
+  if (!db) {
+    const entrevistas = leerJson(entrevistasFile, []);
+    const index = entrevistas.findIndex((e) => e.id === id);
+
+    if (index !== -1) {
+      entrevistas[index] = {
+        ...entrevistas[index],
+        ...data,
+        id
+      };
+
+      guardarJson(entrevistasFile, entrevistas);
+    }
+
+    return;
+  }
+
+  await db.collection(ENTREVISTAS_COLLECTION).doc(id).set(data, { merge: true });
 }
 
 async function leerVacantes() {
@@ -1308,7 +1365,7 @@ app.patch("/api/postulaciones/:id/estado", verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { estado } = req.body;
-    const estadosValidos = ["pendiente", "aprobado", "rechazado"];
+    const estadosValidos = ["pendiente", "aprobado", "rechazado", "entrevista_agendada"];
 
     if (!estadosValidos.includes(estado)) {
       return res.status(400).json({ error: "Estado no valido." });
@@ -1341,6 +1398,125 @@ app.patch("/api/postulaciones/:id/estado", verifyAdmin, async (req, res) => {
     res.status(500).json({ error: "No fue posible actualizar la postulacion." });
   }
 });
+app.get("/api/entrevistas", verifyAdmin, async (req, res) => {
+  try {
+    const entrevistas = await leerEntrevistas();
+    res.json(entrevistas);
+  } catch (error) {
+    console.error("Error cargando entrevistas:", error);
+    res.status(500).json({ error: "No fue posible cargar entrevistas." });
+  }
+});
+
+app.post("/api/entrevistas", verifyAdmin, async (req, res) => {
+  try {
+    const {
+      candidatoId,
+      candidatoNombre,
+      correo,
+      telefono,
+      puesto,
+      sucursal,
+      ciudad,
+      fecha,
+      hora,
+      reclutador,
+      tipo,
+      comentarios
+    } = req.body;
+
+    if (!candidatoId || !candidatoNombre || !fecha || !hora) {
+      return res.status(400).json({ error: "Faltan datos obligatorios para agendar la entrevista." });
+    }
+
+    const entrevista = {
+      id: `ent-${Date.now()}`,
+      candidatoId,
+      candidatoNombre,
+      correo: correo || "",
+      telefono: telefono || "",
+      puesto: puesto || "",
+      sucursal: sucursal || "",
+      ciudad: ciudad || "",
+      fecha,
+      hora,
+      reclutador: reclutador || "",
+      tipo: tipo || "presencial",
+      comentarios: comentarios || "",
+      estado: "agendada",
+      creadaPor: req.adminUser.email,
+      creadaEn: new Date().toISOString(),
+      fechaActualizacion: new Date().toISOString()
+    };
+
+    await guardarEntrevista(entrevista);
+
+    await actualizarPostulacion(candidatoId, {
+      estadoSolicitud: "entrevista_agendada",
+      entrevistaId: entrevista.id,
+      fechaEntrevista: fecha,
+      horaEntrevista: hora,
+      fechaActualizacion: new Date().toISOString()
+    });
+
+    res.json({
+      ok: true,
+      message: "Entrevista agendada correctamente.",
+      entrevista
+    });
+  } catch (error) {
+    console.error("Error creando entrevista:", error);
+    res.status(500).json({ error: "No fue posible agendar la entrevista." });
+  }
+});
+
+app.patch("/api/entrevistas/:id", verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const data = {
+      ...req.body,
+      fechaActualizacion: new Date().toISOString()
+    };
+
+    await actualizarEntrevista(id, data);
+
+    res.json({
+      ok: true,
+      message: "Entrevista actualizada correctamente."
+    });
+  } catch (error) {
+    console.error("Error actualizando entrevista:", error);
+    res.status(500).json({ error: "No fue posible actualizar la entrevista." });
+  }
+});
+
+app.patch("/api/entrevistas/:id/estado", verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    const estadosValidos = ["agendada", "confirmada", "realizada", "cancelada", "reagendada"];
+
+    if (!estadosValidos.includes(estado)) {
+      return res.status(400).json({ error: "Estado de entrevista no valido." });
+    }
+
+    await actualizarEntrevista(id, {
+      estado,
+      fechaActualizacion: new Date().toISOString()
+    });
+
+    res.json({
+      ok: true,
+      message: "Estado de entrevista actualizado correctamente."
+    });
+  } catch (error) {
+    console.error("Error actualizando estado de entrevista:", error);
+    res.status(500).json({ error: "No fue posible actualizar el estado de la entrevista." });
+  }
+});
+
 
 async function buscarDatosSucursalExistente(data = {}) {
   const vacantes = await leerVacantes();
